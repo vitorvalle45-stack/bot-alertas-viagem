@@ -1,0 +1,5 @@
+.env
+__pycache__/
+*.pyc
+deals_enviados.json
+usuarios.json
