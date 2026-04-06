@@ -19,6 +19,7 @@ from telegram.constants import ParseMode
 from config import (
     BOT_TOKEN,
     CHANNEL_ID,
+    PREMIUM_CHANNEL_ID,
     ADMIN_ID,
     INTERVALO_CHECAGEM,
     HORARIO_ALERTA_DIARIO,
@@ -294,22 +295,39 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
     try:
         usuarios = carregar_usuarios()
 
-        # Busca deals globais pro canal free (sem filtro de regiao)
+        # Busca deals globais
         deals_canal = buscar_novos_deals("BR")
 
-        if CHANNEL_ID and deals_canal:
+        if deals_canal:
             for deal in deals_canal:
                 mensagem = formatar_mensagem_telegram(deal)
-                try:
-                    await context.bot.send_message(
-                        chat_id=CHANNEL_ID,
-                        text=mensagem,
-                        parse_mode=ParseMode.HTML,
-                        disable_web_page_preview=True,
-                    )
-                    logger.info(f"Deal enviado pro canal: {deal['titulo'][:50]}")
-                except Exception as e:
-                    logger.debug(f"Canal nao disponivel: {e}")
+                is_error_fare = deal["relevancia"].get("error_fare", False)
+
+                # Canal PREMIUM: recebe TODOS os deals em tempo real
+                if PREMIUM_CHANNEL_ID:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=int(PREMIUM_CHANNEL_ID),
+                            text=mensagem,
+                            parse_mode=ParseMode.HTML,
+                            disable_web_page_preview=True,
+                        )
+                        logger.info(f"Deal enviado pro Premium: {deal['titulo'][:50]}")
+                    except Exception as e:
+                        logger.error(f"Erro canal Premium: {e}")
+
+                # Canal FREE: recebe apenas deals normais (sem error fares)
+                if CHANNEL_ID and not is_error_fare:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=CHANNEL_ID,
+                            text=mensagem,
+                            parse_mode=ParseMode.HTML,
+                            disable_web_page_preview=True,
+                        )
+                        logger.info(f"Deal enviado pro Free: {deal['titulo'][:50]}")
+                    except Exception as e:
+                        logger.debug(f"Canal Free nao disponivel: {e}")
 
         # Agrupa usuarios por regiao pra nao buscar o mesmo feed varias vezes
         regioes_ativas = {}
