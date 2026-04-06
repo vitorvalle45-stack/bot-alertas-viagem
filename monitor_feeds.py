@@ -12,6 +12,7 @@ import feedparser
 from config import (
     RSS_FEEDS,
     CIDADES_BR,
+    CIDADES_POR_REGIAO,
     DESTINOS_POPULARES,
     SCORE_MINIMO,
     ARQUIVO_DEALS_ENVIADOS,
@@ -46,47 +47,68 @@ def gerar_id_deal(titulo: str, link: str) -> str:
     return hashlib.md5(texto.encode()).hexdigest()
 
 
-def calcular_relevancia(titulo: str, resumo: str) -> dict:
+def detectar_origem_regiao(texto: str) -> str:
+    """Detecta de qual regiao o deal esta saindo, baseado nas cidades mencionadas."""
+    import re as _re
+    texto_lower = texto.lower()
+
+    for regiao, cidades in CIDADES_POR_REGIAO.items():
+        for cidade in cidades:
+            pattern = r'\b' + _re.escape(cidade) + r'\b'
+            if _re.search(pattern, texto_lower):
+                pos = texto_lower.find(cidade)
+                trecho_antes = texto_lower[:pos]
+                # Indicadores de que eh a origem
+                eh_origem = any(ind in trecho_antes[-30:] for ind in ["from ", "de ", "saindo de ", "departing "])
+                eh_destino = any(ind in trecho_antes[-30:] for ind in [" to ", " para ", " nach "])
+
+                # Codigos IATA sao quase sempre origem no contexto de deals
+                codigos_iata = [c for c in cidades if len(c) == 3 and c.isalpha()]
+
+                if eh_origem or (not eh_destino and cidade in codigos_iata):
+                    return regiao
+    return ""
+
+
+def calcular_relevancia(titulo: str, resumo: str, regiao_usuario: str = "BR") -> dict:
     """
-    Analisa o deal e retorna score de relevancia + metadata.
-    Quanto maior o score, mais relevante pro publico brasileiro.
+    Analisa o deal e retorna score de relevancia.
+    Prioriza deals com origem no pais/regiao do usuario.
     """
     texto = f"{titulo} {resumo}".lower()
     resultado = {
         "score": 0,
         "origem_brasil": False,
+        "origem_regiao": "",
         "destino_popular": False,
         "error_fare": False,
         "tags": [],
     }
 
-    # Verifica se a origem eh do Brasil (+10 pontos)
-    # Usa busca por palavra inteira para evitar falsos positivos
-    import re as _re
-    for cidade in CIDADES_BR:
-        pattern = r'\b' + _re.escape(cidade) + r'\b'
-        if _re.search(pattern, texto):
-            # Verifica se a cidade aparece ANTES de indicadores de destino
-            # para confirmar que eh realmente a origem
-            pos = texto.find(cidade)
-            trecho_antes = texto[:pos]
-            # Se "from" ou "de" aparece logo antes, eh origem
-            eh_origem = any(ind in trecho_antes[-30:] for ind in ["from ", "de ", "saindo de "])
-            # Se "to" ou "para" aparece logo antes, eh destino, nao origem
-            eh_destino = any(ind in trecho_antes[-30:] for ind in [" to ", " para "])
+    # Detecta regiao de origem do deal
+    origem = detectar_origem_regiao(texto)
+    resultado["origem_regiao"] = origem
 
-            if eh_origem or (not eh_destino and cidade in ["brazil", "brasil", "gru", "gig", "bsb", "cnf", "cwb", "poa", "ssa", "rec", "vcp"]):
-                resultado["score"] += 10
-                resultado["origem_brasil"] = True
-                resultado["tags"].append("Saindo do Brasil")
-                break
-            else:
-                # Destino eh Brasil = tambem relevante mas menos
-                resultado["score"] += 5
-                resultado["tags"].append("Destino Brasil")
-                break
+    if origem:
+        if origem == regiao_usuario:
+            # Deal saindo do PAIS do usuario = alta prioridade (+12)
+            resultado["score"] += 12
+            nomes_regiao = {
+                "BR": "Brasil", "US": "USA", "UK": "UK", "EU": "Europe",
+                "CH": "Switzerland", "AU": "Australia", "AE": "UAE",
+                "JP": "Japan", "KR": "Korea", "CA": "Canada",
+                "DK": "Denmark", "SE": "Sweden", "NO": "Norway", "MX": "Mexico",
+            }
+            resultado["tags"].append(f"From {nomes_regiao.get(origem, origem)}")
+        elif origem == "BR":
+            resultado["origem_brasil"] = True
+            resultado["score"] += 5
+            resultado["tags"].append("From Brazil")
+        else:
+            # Deal de outra regiao, ainda tem valor (+3)
+            resultado["score"] += 3
 
-    # Verifica se o destino eh popular para brasileiros (+5 pontos)
+    # Verifica se o destino eh popular (+5 pontos)
     for destino in DESTINOS_POPULARES:
         if destino in texto:
             resultado["score"] += 5
@@ -111,13 +133,6 @@ def calcular_relevancia(titulo: str, resumo: str) -> dict:
     for termo in termos_barato:
         if termo in texto:
             resultado["score"] += 3
-            break
-
-    # Penalidade para destinos menos relevantes (-2 pontos)
-    destinos_longe = ["africa", "india", "pakistan", "bangladesh"]
-    for destino in destinos_longe:
-        if destino in texto:
-            resultado["score"] -= 2
             break
 
     return resultado
@@ -374,14 +389,26 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
     return "\n".join(linhas)
 
 
-def buscar_novos_deals() -> list[dict]:
+def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
     """
-    Busca todos os feeds RSS e retorna deals novos ordenados por relevancia.
+    Busca feeds RSS e retorna deals novos ordenados por relevancia.
+    Prioriza feeds e deals da regiao do usuario.
     """
     deals_enviados = carregar_deals_enviados()
     novos_deals = []
 
-    for feed_config in RSS_FEEDS:
+    # Ordena feeds: primeiro os da regiao do usuario, depois ALL, depois outros
+    def prioridade_feed(f):
+        r = f.get("regiao", "ALL")
+        if r == regiao_usuario:
+            return 0
+        if r == "ALL":
+            return 1
+        return 2
+
+    feeds_ordenados = sorted(RSS_FEEDS, key=prioridade_feed)
+
+    for feed_config in feeds_ordenados:
         nome = feed_config["nome"]
         url = feed_config["url"]
 
@@ -404,8 +431,12 @@ def buscar_novos_deals() -> list[dict]:
                 if deal_id in deals_enviados:
                     continue
 
-                # Calcula relevancia
-                relevancia = calcular_relevancia(titulo, resumo)
+                # Calcula relevancia com a regiao do usuario
+                relevancia = calcular_relevancia(titulo, resumo, regiao_usuario)
+
+                # Bonus se o feed eh da regiao do usuario (+5)
+                if feed_config.get("regiao") == regiao_usuario:
+                    relevancia["score"] += 5
 
                 # Formata o deal
                 deal = formatar_deal(entry, nome, relevancia)
@@ -430,6 +461,6 @@ def buscar_novos_deals() -> list[dict]:
 
     salvar_deals_enviados(deals_enviados)
 
-    logger.info(f"Encontrados {len(novos_deals)} deals novos, selecionados {len(deals_selecionados)}")
+    logger.info(f"Encontrados {len(novos_deals)} deals novos, selecionados {len(deals_selecionados)} (regiao: {regiao_usuario})")
 
     return deals_selecionados

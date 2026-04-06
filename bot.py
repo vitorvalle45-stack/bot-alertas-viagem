@@ -96,6 +96,12 @@ def get_moeda_usuario(chat_id: int) -> str:
     return dados.get("moeda", "BRL")
 
 
+def get_regiao_usuario(chat_id: int) -> str:
+    usuarios = carregar_usuarios()
+    dados = usuarios.get(str(chat_id), {})
+    return dados.get("regiao", "BR")
+
+
 # ==================== COMANDOS DO BOT ====================
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -197,11 +203,12 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     idioma = get_idioma_usuario(chat_id)
     moeda = get_moeda_usuario(chat_id)
+    regiao = get_regiao_usuario(chat_id)
 
     await update.message.reply_text(t("buscando", idioma))
 
     try:
-        deals = buscar_novos_deals()
+        deals = buscar_novos_deals(regiao)
 
         if not deals:
             await update.message.reply_text(t("nenhum_deal", idioma))
@@ -281,21 +288,17 @@ async def cmd_enviar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== JOBS AUTOMATICOS ====================
 
 async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
-    """Job automatico: verifica feeds e envia deals para todos os usuarios inscritos."""
+    """Job automatico: verifica feeds e envia deals personalizados por regiao."""
     logger.info("Job automatico: verificando feeds...")
 
     try:
-        deals = buscar_novos_deals()
-
-        if not deals:
-            logger.info("Nenhum deal novo encontrado.")
-            return
-
         usuarios = carregar_usuarios()
 
-        # Tenta enviar pro canal se configurado
-        if CHANNEL_ID:
-            for deal in deals:
+        # Busca deals globais pro canal free (sem filtro de regiao)
+        deals_canal = buscar_novos_deals("BR")
+
+        if CHANNEL_ID and deals_canal:
+            for deal in deals_canal:
                 mensagem = formatar_mensagem_telegram(deal)
                 try:
                     await context.bot.send_message(
@@ -306,26 +309,40 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                     )
                     logger.info(f"Deal enviado pro canal: {deal['titulo'][:50]}")
                 except Exception as e:
-                    logger.debug(f"Canal nao disponivel, enviando direto pros usuarios: {e}")
+                    logger.debug(f"Canal nao disponivel: {e}")
 
-        # Envia direto para cada usuario inscrito, na moeda e idioma dele
+        # Agrupa usuarios por regiao pra nao buscar o mesmo feed varias vezes
+        regioes_ativas = {}
         for chat_id_str, user_data in usuarios.items():
-            chat_id = int(chat_id_str)
-            moeda = user_data.get("moeda", "BRL")
-            idioma = user_data.get("idioma", "en")
-            for deal in deals:
-                mensagem = formatar_mensagem_com_moeda(deal, moeda, idioma)
-                try:
-                    await context.bot.send_message(
-                        chat_id=chat_id,
-                        text=mensagem,
-                        parse_mode=ParseMode.HTML,
-                        disable_web_page_preview=True,
-                    )
-                except Exception as e:
-                    logger.error(f"Erro ao enviar deal para {chat_id}: {e}")
+            regiao = user_data.get("regiao", "BR")
+            if regiao not in regioes_ativas:
+                regioes_ativas[regiao] = []
+            regioes_ativas[regiao].append((chat_id_str, user_data))
 
-        logger.info(f"{len(deals)} deals enviados para {len(usuarios)} usuario(s)")
+        # Busca deals por regiao e envia pros usuarios dessa regiao
+        for regiao, users in regioes_ativas.items():
+            deals = buscar_novos_deals(regiao)
+            if not deals:
+                continue
+
+            for chat_id_str, user_data in users:
+                chat_id = int(chat_id_str)
+                moeda = user_data.get("moeda", "BRL")
+                idioma = user_data.get("idioma", "en")
+                for deal in deals:
+                    mensagem = formatar_mensagem_com_moeda(deal, moeda, idioma)
+                    try:
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=mensagem,
+                            parse_mode=ParseMode.HTML,
+                            disable_web_page_preview=True,
+                        )
+                    except Exception as e:
+                        logger.error(f"Erro ao enviar deal para {chat_id}: {e}")
+
+        total_users = len(usuarios)
+        logger.info(f"Deals enviados para {total_users} usuario(s) em {len(regioes_ativas)} regiao(oes)")
 
     except Exception as e:
         logger.error(f"Erro no job de feeds: {e}")
