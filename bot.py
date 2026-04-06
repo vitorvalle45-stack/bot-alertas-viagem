@@ -24,6 +24,7 @@ from config import (
     HORARIO_ALERTA_DIARIO,
 )
 from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda
+from traducoes import t, detectar_idioma
 
 # Logging
 logging.basicConfig(
@@ -71,14 +72,22 @@ def salvar_usuarios(usuarios: dict):
         json.dump(usuarios, f, ensure_ascii=False, indent=2)
 
 
-def adicionar_usuario(chat_id: int, regiao: str = "BR"):
+def adicionar_usuario(chat_id: int, regiao: str = "BR", lang_code: str = ""):
     usuarios = carregar_usuarios()
     info_regiao = REGIOES.get(regiao, REGIOES["BR"])
+    idioma = detectar_idioma(lang_code, regiao)
     usuarios[str(chat_id)] = {
         "regiao": regiao,
         "moeda": info_regiao["moeda"],
+        "idioma": idioma,
     }
     salvar_usuarios(usuarios)
+
+
+def get_idioma_usuario(chat_id: int) -> str:
+    usuarios = carregar_usuarios()
+    dados = usuarios.get(str(chat_id), {})
+    return dados.get("idioma", "en")
 
 
 def get_moeda_usuario(chat_id: int) -> str:
@@ -93,21 +102,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mensagem de boas-vindas quando alguem inicia o bot."""
     usuario = update.effective_user.first_name
     chat_id = update.effective_chat.id
+    lang_code = update.effective_user.language_code or ""
 
-    # Salva o usuario com regiao padrao BR
-    adicionar_usuario(chat_id, "BR")
-    logger.info(f"Usuario registrado: {usuario} (ID: {chat_id})")
+    # Detecta idioma pelo Telegram e salva
+    idioma = detectar_idioma(lang_code)
+    adicionar_usuario(chat_id, "BR", lang_code)
+    logger.info(f"Usuario registrado: {usuario} (ID: {chat_id}, lang: {lang_code}, idioma: {idioma})")
 
-    texto = (
-        f"Ola, {usuario}! \u2708\uFE0F\n\n"
-        f"Bem-vindo ao <b>Bot de Alertas de Viagem!</b>\n\n"
-        f"Eu monitoro dezenas de fontes 24/7 procurando:\n"
-        f"\u2022 \U0001F525 Passagens aereas com precos absurdos\n"
-        f"\u2022 \U0001F6A8 Error fares (erros de preco das cias aereas)\n"
-        f"\u2022 \U0001F4B0 Promocoes relampago de hospedagem\n\n"
-        f"\U0001F30D <b>Primeiro, escolha sua regiao:</b>\n"
-        f"(isso define a moeda dos precos)"
-    )
+    texto = t("welcome", idioma, nome=usuario)
 
     # Botoes de regiao em grid
     botoes = [
@@ -147,7 +149,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_moeda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Permite trocar a regiao/moeda."""
-    texto = "\U0001F30D <b>Escolha sua regiao/moeda:</b>"
+    idioma = get_idioma_usuario(update.effective_chat.id)
+    texto = t("escolha_moeda", idioma)
 
     botoes = [
         [
@@ -185,44 +188,29 @@ async def cmd_moeda(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando de ajuda."""
-    texto = (
-        "\U0001F4D6 <b>COMO USAR O BOT</b>\n\n"
-        "<b>1. Entre no canal de alertas</b>\n"
-        "La voce recebe todos os deals automaticamente.\n\n"
-        "<b>2. Ative as notificacoes</b>\n"
-        "Clique no nome do canal > Notificacoes > Ativar\n"
-        "Assim voce nao perde nenhum error fare!\n\n"
-        "<b>3. Aja rapido!</b>\n"
-        "Error fares duram de 30 minutos a 2 horas.\n"
-        "Quando receber um alerta, corra para comprar!\n\n"
-        "<b>4. Dicas importantes:</b>\n"
-        "\u2022 A maioria das cias aereas honra error fares (~85%)\n"
-        "\u2022 Compre PRIMEIRO, planeje DEPOIS\n"
-        "\u2022 Nao divulgue o erro antes de comprar\n"
-        "\u2022 Use aba anonima para precos mais baixos\n\n"
-        "<b>Duvidas?</b> Fale com o admin do canal!"
-    )
-    await update.message.reply_text(texto, parse_mode=ParseMode.HTML)
+    idioma = get_idioma_usuario(update.effective_chat.id)
+    await update.message.reply_text(t("ajuda", idioma), parse_mode=ParseMode.HTML)
 
 
 async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Busca manualmente os ultimos deals."""
-    await update.message.reply_text("\U0001F50D Buscando deals agora... Aguarde!")
+    chat_id = update.effective_chat.id
+    idioma = get_idioma_usuario(chat_id)
+    moeda = get_moeda_usuario(chat_id)
+
+    await update.message.reply_text(t("buscando", idioma))
 
     try:
         deals = buscar_novos_deals()
 
         if not deals:
-            await update.message.reply_text(
-                "\U0001F614 Nenhum deal novo encontrado agora.\n"
-                "Os feeds sao atualizados constantemente. Tente novamente em alguns minutos!"
-            )
+            await update.message.reply_text(t("nenhum_deal", idioma))
             return
 
-        await update.message.reply_text(f"\u2705 Encontrei {len(deals)} deal(s)!\n")
+        await update.message.reply_text(t("deals_encontrados", idioma, n=len(deals)))
 
         for deal in deals:
-            mensagem = formatar_mensagem_telegram(deal)
+            mensagem = formatar_mensagem_com_moeda(deal, moeda, idioma)
             await update.message.reply_text(mensagem, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
     except Exception as e:
@@ -232,10 +220,9 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostra estatisticas do bot."""
-    import json
-    from pathlib import Path
-    from config import ARQUIVO_DEALS_ENVIADOS
+    from config import ARQUIVO_DEALS_ENVIADOS, RSS_FEEDS
 
+    idioma = get_idioma_usuario(update.effective_chat.id)
     total_enviados = 0
     caminho = Path(ARQUIVO_DEALS_ENVIADOS)
     if caminho.exists():
@@ -243,13 +230,10 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             dados = json.load(f)
             total_enviados = len(dados)
 
-    texto = (
-        "\U0001F4CA <b>ESTATISTICAS DO BOT</b>\n\n"
-        f"\U0001F4E8 Deals enviados (ultimos 7 dias): <b>{total_enviados}</b>\n"
-        f"\U0001F4E1 Feeds monitorados: <b>{len(__import__('config').RSS_FEEDS)}</b>\n"
-        f"\u23F0 Intervalo de checagem: <b>{INTERVALO_CHECAGEM // 60} minutos</b>\n"
-        f"\U0001F4C5 Alerta diario: <b>{HORARIO_ALERTA_DIARIO[0]:02d}:{HORARIO_ALERTA_DIARIO[1]:02d}</b>\n"
-    )
+    texto = t("stats", idioma,
+              total=total_enviados,
+              feeds=len(RSS_FEEDS),
+              intervalo=INTERVALO_CHECAGEM // 60)
     await update.message.reply_text(texto, parse_mode=ParseMode.HTML)
 
 
@@ -324,12 +308,13 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logger.debug(f"Canal nao disponivel, enviando direto pros usuarios: {e}")
 
-        # Envia direto para cada usuario inscrito, na moeda dele
+        # Envia direto para cada usuario inscrito, na moeda e idioma dele
         for chat_id_str, user_data in usuarios.items():
             chat_id = int(chat_id_str)
             moeda = user_data.get("moeda", "BRL")
+            idioma = user_data.get("idioma", "en")
             for deal in deals:
-                mensagem = formatar_mensagem_com_moeda(deal, moeda)
+                mensagem = formatar_mensagem_com_moeda(deal, moeda, idioma)
                 try:
                     await context.bot.send_message(
                         chat_id=chat_id,
@@ -379,36 +364,30 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data and data.startswith("regiao_"):
         regiao = data.replace("regiao_", "")
         chat_id = query.from_user.id
+        lang_code = query.from_user.language_code or ""
 
         if regiao in REGIOES:
-            adicionar_usuario(chat_id, regiao)
+            adicionar_usuario(chat_id, regiao, lang_code)
             info = REGIOES[regiao]
-            await query.answer(f"Regiao: {info['nome']} ({info['simbolo']})")
+            idioma = detectar_idioma(lang_code, regiao)
 
-            texto = (
-                f"\u2705 <b>Regiao configurada!</b>\n\n"
-                f"{info['flag']} <b>{info['nome']}</b>\n"
-                f"\U0001F4B0 Moeda: <b>{info['simbolo']} ({info['moeda']})</b>\n\n"
-                f"Todos os precos serao exibidos em <b>{info['simbolo']}</b>!\n\n"
-                f"<b>Comandos:</b>\n"
-                f"/buscar - Ver deals agora\n"
-                f"/moeda - Trocar moeda/regiao\n"
-                f"/ajuda - Como usar\n"
-                f"/stats - Estatisticas\n\n"
-                f"\U0001F514 Voce recebera alertas automaticos a cada 15 minutos!"
-            )
+            await query.answer(f"{info['nome']} ({info['simbolo']})")
+
+            texto = t("regiao_ok", idioma,
+                      flag=info['flag'], regiao=info['nome'],
+                      simbolo=info['simbolo'], moeda=info['moeda'])
 
             botoes = []
             if CHANNEL_ID:
                 canal_link = f"https://t.me/{CHANNEL_ID[1:]}" if CHANNEL_ID.startswith("@") else CHANNEL_ID
-                botoes.append([InlineKeyboardButton("\U0001F4E2 Entrar no Canal de Alertas", url=canal_link)])
-            botoes.append([InlineKeyboardButton("\u2764\uFE0F Compartilhar com amigos", switch_inline_query="Confira esse bot de passagens baratas!")])
+                botoes.append([InlineKeyboardButton(t("entrar_canal", idioma), url=canal_link)])
+            botoes.append([InlineKeyboardButton(t("compartilhar", idioma), switch_inline_query=t("share_text", idioma))])
 
             keyboard = InlineKeyboardMarkup(botoes) if botoes else None
             await query.edit_message_text(texto, parse_mode=ParseMode.HTML, reply_markup=keyboard)
-            logger.info(f"Usuario {chat_id} configurou regiao: {regiao} ({info['moeda']})")
+            logger.info(f"Usuario {chat_id} configurou regiao: {regiao} ({info['moeda']}, idioma: {idioma})")
         else:
-            await query.answer("Regiao invalida")
+            await query.answer("Invalid region")
     else:
         await query.answer()
 

@@ -329,8 +329,10 @@ def formatar_mensagem_telegram(deal: dict) -> str:
     return "\n".join(linhas)
 
 
-def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL") -> str:
-    """Formata o deal com preco convertido para a moeda do usuario."""
+def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "pt") -> str:
+    """Formata o deal com preco convertido para a moeda e idioma do usuario."""
+    from traducoes import t
+
     rel = deal["relevancia"]
 
     if rel["error_fare"]:
@@ -341,10 +343,10 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL") -> str:
         emoji_tipo = "\u2708\uFE0F"
 
     linhas = []
-    linhas.append(f"{emoji_tipo} <b>ALERTA DE PASSAGEM</b>")
+    linhas.append(f"{emoji_tipo} <b>{t('alerta_passagem', idioma)}</b>")
 
     if rel["error_fare"]:
-        linhas.append("\U0001F6A8 <b>POSSIVEL ERROR FARE!</b>")
+        linhas.append(f"\U0001F6A8 <b>{t('error_fare', idioma)}</b>")
 
     linhas.append("")
 
@@ -353,7 +355,6 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL") -> str:
     else:
         linhas.append(f"\u2708\uFE0F <b>{deal['titulo']}</b>")
 
-    # Preco convertido pra moeda do usuario
     if deal["preco"]:
         preco_convertido = converter_preco(deal["preco"], moeda)
         linhas.append(f"\U0001F4B0 <b>{preco_convertido}</b>")
@@ -365,10 +366,10 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL") -> str:
         tags_str = " | ".join(rel["tags"])
         linhas.append(f"\n\U0001F3F7\uFE0F {tags_str}")
 
-    linhas.append(f"\n\U0001F4F0 Fonte: {deal['fonte']}")
-    linhas.append(f'\n\U0001F449 <a href="{deal["link"]}">VER DEAL COMPLETO</a>')
+    linhas.append(f"\n\U0001F4F0 {t('fonte', idioma)}: {deal['fonte']}")
+    linhas.append(f'\n\U0001F449 <a href="{deal["link"]}">{t("ver_deal", idioma)}</a>')
     linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
-    linhas.append("\U0001F514 Ative as notificacoes para nao perder nenhum alerta!")
+    linhas.append(f"\U0001F514 {t('ativar_notif', idioma)}")
 
     return "\n".join(linhas)
 
