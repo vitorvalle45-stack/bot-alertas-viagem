@@ -13,6 +13,23 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
 # RSS Feeds para monitorar
 RSS_FEEDS = [
+    # Feeds brasileiros (prioridade)
+    {
+        "nome": "Melhores Destinos",
+        "url": "https://www.melhoresdestinos.com.br/feed",
+        "tipo": "brasil",
+    },
+    {
+        "nome": "Passagens Imperdiveis",
+        "url": "https://www.passagensimperdiveis.com.br/feed/",
+        "tipo": "brasil",
+    },
+    {
+        "nome": "Melhores Destinos - Promocoes",
+        "url": "https://www.melhoresdestinos.com.br/category/promocoes/feed",
+        "tipo": "brasil",
+    },
+    # Feeds internacionais com deals saindo do Brasil
     {
         "nome": "Secret Flying",
         "url": "https://www.secretflying.com/feed/",
@@ -72,6 +89,11 @@ HORARIO_ALERTA_DIARIO = (6, 0)
 
 # Maximo de deals por checagem
 MAX_DEALS_POR_CHECAGEM = 5
+
+# Score minimo para enviar um deal (filtra deals irrelevantes)
+# Deals saindo do Brasil tem score 10+, destinos populares 5+
+# Isso garante que so deals relevantes pro publico BR sejam enviados
+SCORE_MINIMO = 3
 
 # Arquivo para controlar deals ja enviados
 ARQUIVO_DEALS_ENVIADOS = "deals_enviados.json"

@@ -13,6 +13,7 @@ from config import (
     RSS_FEEDS,
     CIDADES_BR,
     DESTINOS_POPULARES,
+    SCORE_MINIMO,
     ARQUIVO_DEALS_ENVIADOS,
     MAX_DEALS_POR_CHECAGEM,
 )
@@ -122,60 +123,104 @@ def calcular_relevancia(titulo: str, resumo: str) -> dict:
     return resultado
 
 
-COTACAO_USD_BRL = 5.50
-COTACAO_EUR_BRL = 6.00
-COTACAO_GBP_BRL = 7.00
+# Cotacoes base (1 USD = X moeda). Atualizar periodicamente.
+COTACOES_DE_USD = {
+    "USD": 1.0,
+    "BRL": 5.50,
+    "EUR": 0.92,
+    "GBP": 0.79,
+    "CHF": 0.88,
+    "AUD": 1.53,
+    "AED": 3.67,
+    "JPY": 151.0,
+    "KRW": 1340.0,
+    "CAD": 1.36,
+    "DKK": 6.88,
+    "SEK": 10.45,
+    "NOK": 10.70,
+    "MXN": 17.15,
+}
+
+SIMBOLOS_MOEDA = {
+    "USD": "US$", "BRL": "R$", "EUR": "\u20AC", "GBP": "\u00A3",
+    "CHF": "CHF", "AUD": "A$", "AED": "AED", "JPY": "\u00A5",
+    "KRW": "\u20A9", "CAD": "C$", "DKK": "DKK", "SEK": "SEK",
+    "NOK": "NOK", "MXN": "MX$",
+}
 
 
-def converter_para_reais(preco_str: str) -> str:
-    """Converte preco em moeda estrangeira para reais."""
+def extrair_valor_usd(preco_str: str) -> float:
+    """Extrai valor numerico e converte para USD como base."""
     import re
-    # Extrai o valor numerico
     numeros = re.findall(r'[\d.,]+', preco_str)
     if not numeros:
-        return preco_str
+        return 0.0
 
     valor_str = numeros[0].replace(',', '')
     try:
         valor = float(valor_str)
     except ValueError:
-        return preco_str
+        return 0.0
 
-    # Detecta moeda e converte
     preco_lower = preco_str.lower()
     if 'r$' in preco_lower:
-        return f"R$ {valor:,.0f}".replace(",", ".")
-    elif '€' in preco_lower or 'eur' in preco_lower:
-        valor_brl = valor * COTACAO_EUR_BRL
-        return f"R$ {valor_brl:,.0f} (~€{valor:,.0f})".replace(",", ".")
-    elif '£' in preco_lower or 'gbp' in preco_lower:
-        valor_brl = valor * COTACAO_GBP_BRL
-        return f"R$ {valor_brl:,.0f} (~£{valor:,.0f})".replace(",", ".")
+        return valor / COTACOES_DE_USD["BRL"]
+    elif '\u20ac' in preco_lower or 'eur' in preco_lower:
+        return valor / COTACOES_DE_USD["EUR"]
+    elif '\u00a3' in preco_lower or 'gbp' in preco_lower:
+        return valor / COTACOES_DE_USD["GBP"]
+    elif 'chf' in preco_lower:
+        return valor / COTACOES_DE_USD["CHF"]
+    elif 'a$' in preco_lower or 'aud' in preco_lower:
+        return valor / COTACOES_DE_USD["AUD"]
     else:
-        # USD ou $ generico
-        valor_brl = valor * COTACAO_USD_BRL
-        return f"R$ {valor_brl:,.0f} (~US${valor:,.0f})".replace(",", ".")
+        # Assume USD
+        return valor
+
+
+def converter_preco(preco_str: str, moeda_destino: str = "BRL") -> str:
+    """Converte preco para qualquer moeda de destino."""
+    valor_usd = extrair_valor_usd(preco_str)
+    if valor_usd == 0:
+        return preco_str
+
+    taxa = COTACOES_DE_USD.get(moeda_destino, 5.50)
+    simbolo = SIMBOLOS_MOEDA.get(moeda_destino, moeda_destino)
+    valor_convertido = valor_usd * taxa
+
+    # Formata baseado na moeda
+    if moeda_destino in ("JPY", "KRW"):
+        # Sem decimais pra moedas com valores altos
+        texto = f"{simbolo} {valor_convertido:,.0f}"
+    else:
+        texto = f"{simbolo} {valor_convertido:,.2f}"
+
+    # Adiciona valor original em USD como referencia
+    if moeda_destino != "USD":
+        texto += f" (~US${valor_usd:,.0f})"
+
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def extrair_preco(texto: str) -> str:
-    """Tenta extrair preco do titulo/resumo do deal e converte para reais."""
+    """Tenta extrair preco do titulo/resumo do deal (retorna string original)."""
     import re
-
-    # Busca padroes como $299, USD 299, R$ 1.500, etc
     padroes = [
         r'R\$\s*[\d.,]+',
         r'US\$\s*[\d.,]+',
         r'USD\s*[\d.,]+',
         r'\$\s*[\d.,]+',
         r'EUR\s*[\d.,]+',
-        r'€\s*[\d.,]+',
-        r'£\s*[\d.,]+',
+        r'\u20AC\s*[\d.,]+',
+        r'\u00A3\s*[\d.,]+',
         r'GBP\s*[\d.,]+',
+        r'CHF\s*[\d.,]+',
+        r'A\$\s*[\d.,]+',
     ]
     for padrao in padroes:
         match = re.search(padrao, texto)
         if match:
-            return converter_para_reais(match.group(0))
+            return match.group(0)
     return ""
 
 
@@ -278,6 +323,50 @@ def formatar_mensagem_telegram(deal: dict) -> str:
     linhas.append(f'\n\U0001F449 <a href="{deal["link"]}">VER DEAL COMPLETO</a>')
 
     # Rodape
+    linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
+    linhas.append("\U0001F514 Ative as notificacoes para nao perder nenhum alerta!")
+
+    return "\n".join(linhas)
+
+
+def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL") -> str:
+    """Formata o deal com preco convertido para a moeda do usuario."""
+    rel = deal["relevancia"]
+
+    if rel["error_fare"]:
+        emoji_tipo = "\U0001F6A8"
+    elif rel["score"] >= 10:
+        emoji_tipo = "\U0001F525"
+    else:
+        emoji_tipo = "\u2708\uFE0F"
+
+    linhas = []
+    linhas.append(f"{emoji_tipo} <b>ALERTA DE PASSAGEM</b>")
+
+    if rel["error_fare"]:
+        linhas.append("\U0001F6A8 <b>POSSIVEL ERROR FARE!</b>")
+
+    linhas.append("")
+
+    if deal["origem"] and deal["destino"]:
+        linhas.append(f"\u2708\uFE0F <b>{deal['origem']} \u2192 {deal['destino']}</b>")
+    else:
+        linhas.append(f"\u2708\uFE0F <b>{deal['titulo']}</b>")
+
+    # Preco convertido pra moeda do usuario
+    if deal["preco"]:
+        preco_convertido = converter_preco(deal["preco"], moeda)
+        linhas.append(f"\U0001F4B0 <b>{preco_convertido}</b>")
+
+    if deal["resumo"]:
+        linhas.append(f"\n\U0001F4CB {deal['resumo']}")
+
+    if rel["tags"]:
+        tags_str = " | ".join(rel["tags"])
+        linhas.append(f"\n\U0001F3F7\uFE0F {tags_str}")
+
+    linhas.append(f"\n\U0001F4F0 Fonte: {deal['fonte']}")
+    linhas.append(f'\n\U0001F449 <a href="{deal["link"]}">VER DEAL COMPLETO</a>')
     linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
     linhas.append("\U0001F514 Ative as notificacoes para nao perder nenhum alerta!")
 

@@ -23,7 +23,7 @@ from config import (
     INTERVALO_CHECAGEM,
     HORARIO_ALERTA_DIARIO,
 )
-from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram
+from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda
 
 # Logging
 logging.basicConfig(
@@ -32,27 +32,59 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Arquivo para salvar IDs dos usuarios inscritos
+# Arquivo para salvar preferencias dos usuarios
 ARQUIVO_USUARIOS = "usuarios.json"
 
+# Regioes disponiveis
+REGIOES = {
+    "BR": {"nome": "Brasil", "moeda": "BRL", "simbolo": "R$", "flag": "\U0001F1E7\U0001F1F7"},
+    "US": {"nome": "Estados Unidos", "moeda": "USD", "simbolo": "US$", "flag": "\U0001F1FA\U0001F1F8"},
+    "UK": {"nome": "Reino Unido", "moeda": "GBP", "simbolo": "\u00A3", "flag": "\U0001F1EC\U0001F1E7"},
+    "EU": {"nome": "Europa (Euro)", "moeda": "EUR", "simbolo": "\u20AC", "flag": "\U0001F1EA\U0001F1FA"},
+    "CH": {"nome": "Suica", "moeda": "CHF", "simbolo": "CHF", "flag": "\U0001F1E8\U0001F1ED"},
+    "AU": {"nome": "Australia", "moeda": "AUD", "simbolo": "A$", "flag": "\U0001F1E6\U0001F1FA"},
+    "AE": {"nome": "Emirados Arabes", "moeda": "AED", "simbolo": "AED", "flag": "\U0001F1E6\U0001F1EA"},
+    "JP": {"nome": "Japao", "moeda": "JPY", "simbolo": "\u00A5", "flag": "\U0001F1EF\U0001F1F5"},
+    "KR": {"nome": "Coreia do Sul", "moeda": "KRW", "simbolo": "\u20A9", "flag": "\U0001F1F0\U0001F1F7"},
+    "CA": {"nome": "Canada", "moeda": "CAD", "simbolo": "C$", "flag": "\U0001F1E8\U0001F1E6"},
+    "DK": {"nome": "Dinamarca", "moeda": "DKK", "simbolo": "DKK", "flag": "\U0001F1E9\U0001F1F0"},
+    "SE": {"nome": "Suecia", "moeda": "SEK", "simbolo": "SEK", "flag": "\U0001F1F8\U0001F1EA"},
+    "NO": {"nome": "Noruega", "moeda": "NOK", "simbolo": "NOK", "flag": "\U0001F1F3\U0001F1F4"},
+    "MX": {"nome": "Mexico", "moeda": "MXN", "simbolo": "MX$", "flag": "\U0001F1F2\U0001F1FD"},
+}
 
-def carregar_usuarios() -> set:
+
+def carregar_usuarios() -> dict:
     caminho = Path(ARQUIVO_USUARIOS)
     if caminho.exists():
         with open(caminho, "r") as f:
-            return set(json.load(f))
-    return set()
+            dados = json.load(f)
+        # Compatibilidade: se for lista antiga, converte pra dict
+        if isinstance(dados, list):
+            return {str(uid): {"regiao": "BR", "moeda": "BRL"} for uid in dados}
+        return dados
+    return {}
 
 
-def salvar_usuarios(usuarios: set):
+def salvar_usuarios(usuarios: dict):
     with open(ARQUIVO_USUARIOS, "w") as f:
-        json.dump(list(usuarios), f)
+        json.dump(usuarios, f, ensure_ascii=False, indent=2)
 
 
-def adicionar_usuario(chat_id: int):
+def adicionar_usuario(chat_id: int, regiao: str = "BR"):
     usuarios = carregar_usuarios()
-    usuarios.add(chat_id)
+    info_regiao = REGIOES.get(regiao, REGIOES["BR"])
+    usuarios[str(chat_id)] = {
+        "regiao": regiao,
+        "moeda": info_regiao["moeda"],
+    }
     salvar_usuarios(usuarios)
+
+
+def get_moeda_usuario(chat_id: int) -> str:
+    usuarios = carregar_usuarios()
+    dados = usuarios.get(str(chat_id), {})
+    return dados.get("moeda", "BRL")
 
 
 # ==================== COMANDOS DO BOT ====================
@@ -62,8 +94,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     usuario = update.effective_user.first_name
     chat_id = update.effective_chat.id
 
-    # Salva o usuario para receber alertas direto no chat
-    adicionar_usuario(chat_id)
+    # Salva o usuario com regiao padrao BR
+    adicionar_usuario(chat_id, "BR")
     logger.info(f"Usuario registrado: {usuario} (ID: {chat_id})")
 
     texto = (
@@ -73,30 +105,82 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"\u2022 \U0001F525 Passagens aereas com precos absurdos\n"
         f"\u2022 \U0001F6A8 Error fares (erros de preco das cias aereas)\n"
         f"\u2022 \U0001F4B0 Promocoes relampago de hospedagem\n\n"
-        f"<b>Como funciona:</b>\n"
-        f"1\uFE0F\u20E3 Entre no nosso canal de alertas\n"
-        f"2\uFE0F\u20E3 Ative as notificacoes \U0001F514\n"
-        f"3\uFE0F\u20E3 Receba alertas automaticos\n"
-        f"4\uFE0F\u20E3 Compre rapido antes que saia do ar!\n\n"
-        f"<b>Comandos disponiveis:</b>\n"
-        f"/start - Esta mensagem\n"
-        f"/ajuda - Como usar o bot\n"
-        f"/buscar - Ver ultimos deals encontrados\n"
-        f"/stats - Estatisticas do bot\n"
+        f"\U0001F30D <b>Primeiro, escolha sua regiao:</b>\n"
+        f"(isso define a moeda dos precos)"
     )
 
-    botoes = []
-    if CHANNEL_ID:
-        canal_link = CHANNEL_ID if CHANNEL_ID.startswith("@") else f"https://t.me/{CHANNEL_ID}"
-        if CHANNEL_ID.startswith("@"):
-            canal_link = f"https://t.me/{CHANNEL_ID[1:]}"
-        botoes.append([InlineKeyboardButton("\U0001F4E2 Entrar no Canal de Alertas", url=canal_link)])
+    # Botoes de regiao em grid
+    botoes = [
+        [
+            InlineKeyboardButton("\U0001F1E7\U0001F1F7 Brasil (R$)", callback_data="regiao_BR"),
+            InlineKeyboardButton("\U0001F1FA\U0001F1F8 EUA (US$)", callback_data="regiao_US"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1EC\U0001F1E7 UK (\u00A3)", callback_data="regiao_UK"),
+            InlineKeyboardButton("\U0001F1EA\U0001F1FA Europa (\u20AC)", callback_data="regiao_EU"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1E8\U0001F1ED Suica (CHF)", callback_data="regiao_CH"),
+            InlineKeyboardButton("\U0001F1E6\U0001F1FA Australia (A$)", callback_data="regiao_AU"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1E6\U0001F1EA Emirados (AED)", callback_data="regiao_AE"),
+            InlineKeyboardButton("\U0001F1EF\U0001F1F5 Japao (\u00A5)", callback_data="regiao_JP"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1F0\U0001F1F7 Coreia (\u20A9)", callback_data="regiao_KR"),
+            InlineKeyboardButton("\U0001F1E8\U0001F1E6 Canada (C$)", callback_data="regiao_CA"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1E9\U0001F1F0 Dinamarca", callback_data="regiao_DK"),
+            InlineKeyboardButton("\U0001F1F8\U0001F1EA Suecia", callback_data="regiao_SE"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1F3\U0001F1F4 Noruega", callback_data="regiao_NO"),
+            InlineKeyboardButton("\U0001F1F2\U0001F1FD Mexico", callback_data="regiao_MX"),
+        ],
+    ]
 
-    botoes.append([InlineKeyboardButton("\u2764\uFE0F Compartilhar com amigos", switch_inline_query="Confira esse bot de passagens baratas!")])
-
-    keyboard = InlineKeyboardMarkup(botoes) if botoes else None
-
+    keyboard = InlineKeyboardMarkup(botoes)
     await update.message.reply_text(texto, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+
+async def cmd_moeda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Permite trocar a regiao/moeda."""
+    texto = "\U0001F30D <b>Escolha sua regiao/moeda:</b>"
+
+    botoes = [
+        [
+            InlineKeyboardButton("\U0001F1E7\U0001F1F7 Brasil (R$)", callback_data="regiao_BR"),
+            InlineKeyboardButton("\U0001F1FA\U0001F1F8 EUA (US$)", callback_data="regiao_US"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1EC\U0001F1E7 UK (\u00A3)", callback_data="regiao_UK"),
+            InlineKeyboardButton("\U0001F1EA\U0001F1FA Europa (\u20AC)", callback_data="regiao_EU"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1E8\U0001F1ED Suica (CHF)", callback_data="regiao_CH"),
+            InlineKeyboardButton("\U0001F1E6\U0001F1FA Australia (A$)", callback_data="regiao_AU"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1E6\U0001F1EA Emirados (AED)", callback_data="regiao_AE"),
+            InlineKeyboardButton("\U0001F1EF\U0001F1F5 Japao (\u00A5)", callback_data="regiao_JP"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1F0\U0001F1F7 Coreia (\u20A9)", callback_data="regiao_KR"),
+            InlineKeyboardButton("\U0001F1E8\U0001F1E6 Canada (C$)", callback_data="regiao_CA"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1E9\U0001F1F0 Dinamarca", callback_data="regiao_DK"),
+            InlineKeyboardButton("\U0001F1F8\U0001F1EA Suecia", callback_data="regiao_SE"),
+        ],
+        [
+            InlineKeyboardButton("\U0001F1F3\U0001F1F4 Noruega", callback_data="regiao_NO"),
+            InlineKeyboardButton("\U0001F1F2\U0001F1FD Mexico", callback_data="regiao_MX"),
+        ],
+    ]
+
+    await update.message.reply_text(texto, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(botoes))
 
 
 async def cmd_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -240,10 +324,12 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                 except Exception as e:
                     logger.debug(f"Canal nao disponivel, enviando direto pros usuarios: {e}")
 
-        # Envia direto para cada usuario inscrito
-        for chat_id in usuarios:
+        # Envia direto para cada usuario inscrito, na moeda dele
+        for chat_id_str, user_data in usuarios.items():
+            chat_id = int(chat_id_str)
+            moeda = user_data.get("moeda", "BRL")
             for deal in deals:
-                mensagem = formatar_mensagem_telegram(deal)
+                mensagem = formatar_mensagem_com_moeda(deal, moeda)
                 try:
                     await context.bot.send_message(
                         chat_id=chat_id,
@@ -288,7 +374,43 @@ async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Trata cliques em botoes inline."""
     query = update.callback_query
-    await query.answer()
+    data = query.data
+
+    if data and data.startswith("regiao_"):
+        regiao = data.replace("regiao_", "")
+        chat_id = query.from_user.id
+
+        if regiao in REGIOES:
+            adicionar_usuario(chat_id, regiao)
+            info = REGIOES[regiao]
+            await query.answer(f"Regiao: {info['nome']} ({info['simbolo']})")
+
+            texto = (
+                f"\u2705 <b>Regiao configurada!</b>\n\n"
+                f"{info['flag']} <b>{info['nome']}</b>\n"
+                f"\U0001F4B0 Moeda: <b>{info['simbolo']} ({info['moeda']})</b>\n\n"
+                f"Todos os precos serao exibidos em <b>{info['simbolo']}</b>!\n\n"
+                f"<b>Comandos:</b>\n"
+                f"/buscar - Ver deals agora\n"
+                f"/moeda - Trocar moeda/regiao\n"
+                f"/ajuda - Como usar\n"
+                f"/stats - Estatisticas\n\n"
+                f"\U0001F514 Voce recebera alertas automaticos a cada 15 minutos!"
+            )
+
+            botoes = []
+            if CHANNEL_ID:
+                canal_link = f"https://t.me/{CHANNEL_ID[1:]}" if CHANNEL_ID.startswith("@") else CHANNEL_ID
+                botoes.append([InlineKeyboardButton("\U0001F4E2 Entrar no Canal de Alertas", url=canal_link)])
+            botoes.append([InlineKeyboardButton("\u2764\uFE0F Compartilhar com amigos", switch_inline_query="Confira esse bot de passagens baratas!")])
+
+            keyboard = InlineKeyboardMarkup(botoes) if botoes else None
+            await query.edit_message_text(texto, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+            logger.info(f"Usuario {chat_id} configurou regiao: {regiao} ({info['moeda']})")
+        else:
+            await query.answer("Regiao invalida")
+    else:
+        await query.answer()
 
 
 # ==================== MAIN ====================
@@ -324,6 +446,7 @@ def main():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("ajuda", cmd_ajuda))
     app.add_handler(CommandHandler("buscar", cmd_buscar))
+    app.add_handler(CommandHandler("moeda", cmd_moeda))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("enviar", cmd_enviar))
     app.add_handler(CallbackQueryHandler(callback_handler))
@@ -393,6 +516,7 @@ def main_render():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("ajuda", cmd_ajuda))
     app.add_handler(CommandHandler("buscar", cmd_buscar))
+    app.add_handler(CommandHandler("moeda", cmd_moeda))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("enviar", cmd_enviar))
     app.add_handler(CallbackQueryHandler(callback_handler))
