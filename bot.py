@@ -352,14 +352,10 @@ def main():
 
     # Inicia o bot
     print("Bot rodando! Pressione Ctrl+C para parar.\n")
-    app.run_polling(drop_pending_updates=True)
 
-
-if __name__ == "__main__":
     import os
-
     if os.environ.get("RENDER") or os.environ.get("PORT"):
-        # No Render: roda web server + bot juntos usando asyncio
+        # No Render: precisa criar event loop explicitamente (Python 3.14+)
         import asyncio
         from http.server import HTTPServer, BaseHTTPRequestHandler
         import threading
@@ -379,9 +375,16 @@ if __name__ == "__main__":
             server = HTTPServer(("0.0.0.0", port), Handler)
             server.serve_forever()
 
-        # Inicia HTTP server em thread separada ANTES do asyncio
         http_thread = threading.Thread(target=start_http, daemon=True)
         http_thread.start()
         logger.info(f"Servidor web rodando na porta {port}")
 
+        # Cria event loop explicitamente para Python 3.14
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
     main()
