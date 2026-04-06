@@ -355,5 +355,33 @@ def main():
     app.run_polling(drop_pending_updates=True)
 
 
+def run_web_server():
+    """Servidor web simples para manter o Render ativo (free tier)."""
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import os
+
+    port = int(os.environ.get("PORT", 10000))
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Bot de Alertas de Viagem rodando!")
+
+        def log_message(self, format, *args):
+            pass  # Silencia logs do servidor HTTP
+
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    logger.info(f"Servidor web rodando na porta {port}")
+
+
 if __name__ == "__main__":
+    import os
+    # Se estiver no Render (tem variavel PORT), inicia o web server tambem
+    if os.environ.get("RENDER") or os.environ.get("PORT"):
+        run_web_server()
     main()
