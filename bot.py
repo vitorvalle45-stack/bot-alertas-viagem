@@ -352,39 +352,72 @@ def main():
 
     # Inicia o bot
     print("Bot rodando! Pressione Ctrl+C para parar.\n")
+    app.run_polling(drop_pending_updates=True)
 
-    import os
-    if os.environ.get("RENDER") or os.environ.get("PORT"):
-        # No Render: precisa criar event loop explicitamente (Python 3.14+)
-        import asyncio
-        from http.server import HTTPServer, BaseHTTPRequestHandler
-        import threading
 
-        port = int(os.environ.get("PORT", 10000))
+def main_render():
+    """Versao especial para rodar no Render (Python 3.14 + web server)."""
+    import asyncio
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
 
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(200)
-                self.send_header("Content-Type", "text/plain")
-                self.end_headers()
-                self.wfile.write(b"Bot de Alertas de Viagem rodando!")
-            def log_message(self, format, *args):
-                pass
+    port = int(os.environ.get("PORT", 10000))
 
-        def start_http():
-            server = HTTPServer(("0.0.0.0", port), Handler)
-            server.serve_forever()
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Bot de Alertas de Viagem rodando!")
+        def log_message(self, format, *args):
+            pass
 
-        http_thread = threading.Thread(target=start_http, daemon=True)
-        http_thread.start()
-        logger.info(f"Servidor web rodando na porta {port}")
+    def start_http():
+        server = HTTPServer(("0.0.0.0", port), Handler)
+        server.serve_forever()
 
-        # Cria event loop explicitamente para Python 3.14
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    http_thread = threading.Thread(target=start_http, daemon=True)
+    http_thread.start()
+    logger.info(f"Servidor web rodando na porta {port}")
+
+    if not BOT_TOKEN:
+        print("ERRO: Token nao configurado!")
+        return
+
+    # Cria loop explicitamente e roda tudo async
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    app = Application.builder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("ajuda", cmd_ajuda))
+    app.add_handler(CommandHandler("buscar", cmd_buscar))
+    app.add_handler(CommandHandler("stats", cmd_stats))
+    app.add_handler(CommandHandler("enviar", cmd_enviar))
+    app.add_handler(CallbackQueryHandler(callback_handler))
+
+    job_queue = app.job_queue
+    if job_queue:
+        job_queue.run_repeating(
+            job_verificar_feeds,
+            interval=INTERVALO_CHECAGEM,
+            first=30,
+            name="verificar_feeds",
+        )
+        hora_utc = (HORARIO_ALERTA_DIARIO[0] + 3) % 24
+        job_queue.run_daily(
+            job_alerta_diario,
+            time=dt_time(hour=hora_utc, minute=HORARIO_ALERTA_DIARIO[1]),
+            name="alerta_diario",
+        )
 
     app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
-    main()
+    import os
+    if os.environ.get("RENDER") or os.environ.get("PORT"):
+        main_render()
+    else:
+        main()
