@@ -482,6 +482,23 @@ def main_render():
     http_thread.start()
     logger.info(f"Servidor web rodando na porta {port}")
 
+    # Self-ping: mantem o Render acordado pingando a si mesmo a cada 10 min
+    def self_ping():
+        import time
+        import httpx
+        render_url = os.environ.get("RENDER_EXTERNAL_URL", "https://bot-alertas-viagem.onrender.com")
+        while True:
+            time.sleep(600)  # 10 minutos
+            try:
+                httpx.get(render_url, timeout=30)
+                logger.info(f"Self-ping OK: {render_url}")
+            except Exception as e:
+                logger.debug(f"Self-ping falhou (normal no startup): {e}")
+
+    ping_thread = threading.Thread(target=self_ping, daemon=True)
+    ping_thread.start()
+    logger.info("Self-ping configurado (a cada 10 min)")
+
     if not BOT_TOKEN:
         print("ERRO: Token nao configurado!")
         return
