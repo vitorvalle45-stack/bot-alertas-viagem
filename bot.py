@@ -77,12 +77,21 @@ def adicionar_usuario(chat_id: int, regiao: str = "BR", lang_code: str = ""):
     usuarios = carregar_usuarios()
     info_regiao = REGIOES.get(regiao, REGIOES["BR"])
     idioma = detectar_idioma(lang_code, regiao)
+    # Preserva status premium se ja existia
+    premium = usuarios.get(str(chat_id), {}).get("premium", False)
     usuarios[str(chat_id)] = {
         "regiao": regiao,
         "moeda": info_regiao["moeda"],
         "idioma": idioma,
+        "premium": premium,
     }
     salvar_usuarios(usuarios)
+
+
+def is_premium(chat_id: int) -> bool:
+    usuarios = carregar_usuarios()
+    dados = usuarios.get(str(chat_id), {})
+    return dados.get("premium", False)
 
 
 def get_idioma_usuario(chat_id: int) -> str:
@@ -286,6 +295,65 @@ async def cmd_enviar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"\u274C Erro: {e}")
 
 
+# ============ COMANDO ADMIN: GERENCIAR PREMIUM ============
+
+async def cmd_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """(Admin) Adiciona ou remove usuario premium. Uso: /premium add ID ou /premium remove ID"""
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("\u274C Comando restrito ao admin.")
+        return
+
+    args = context.args
+    if not args or len(args) < 2 or args[0] not in ("add", "remove", "list"):
+        # Se for /premium list
+        if args and args[0] == "list":
+            usuarios = carregar_usuarios()
+            premiums = [(uid, d) for uid, d in usuarios.items() if d.get("premium")]
+            if not premiums:
+                await update.message.reply_text("Nenhum usuario premium.")
+                return
+            texto = "\U0001F451 <b>Usuarios Premium:</b>\n\n"
+            for uid, d in premiums:
+                texto += f"\u2022 <code>{uid}</code> - {d.get('regiao', '?')} ({d.get('moeda', '?')})\n"
+            await update.message.reply_text(texto, parse_mode=ParseMode.HTML)
+            return
+
+        await update.message.reply_text(
+            "\U0001F451 <b>Gerenciar Premium</b>\n\n"
+            "<code>/premium add ID</code> - Adicionar premium\n"
+            "<code>/premium remove ID</code> - Remover premium\n"
+            "<code>/premium list</code> - Listar premiums",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    acao = args[0]
+    user_id = args[1]
+
+    usuarios = carregar_usuarios()
+
+    if user_id not in usuarios:
+        await update.message.reply_text(f"\u274C Usuario {user_id} nao encontrado. Ele precisa dar /start primeiro.")
+        return
+
+    if acao == "add":
+        usuarios[user_id]["premium"] = True
+        salvar_usuarios(usuarios)
+        await update.message.reply_text(f"\u2705 Usuario {user_id} agora eh PREMIUM! \U0001F451")
+        # Notifica o usuario
+        idioma = usuarios[user_id].get("idioma", "en")
+        try:
+            msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYou now receive exclusive error fares and real-time alerts directly!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real direto no seu chat!"
+            await context.bot.send_message(chat_id=int(user_id), text=msg, parse_mode=ParseMode.HTML)
+        except Exception:
+            pass
+
+    elif acao == "remove":
+        usuarios[user_id]["premium"] = False
+        salvar_usuarios(usuarios)
+        await update.message.reply_text(f"\u2705 Usuario {user_id} removido do Premium.")
+
+
 # ==================== JOBS AUTOMATICOS ====================
 
 async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
@@ -329,64 +397,93 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         logger.debug(f"Canal Free nao disponivel: {e}")
 
-        # Agrupa usuarios por regiao pra nao buscar o mesmo feed varias vezes
-        regioes_ativas = {}
-        for chat_id_str, user_data in usuarios.items():
-            regiao = user_data.get("regiao", "BR")
-            if regiao not in regioes_ativas:
-                regioes_ativas[regiao] = []
-            regioes_ativas[regiao].append((chat_id_str, user_data))
+        # Filtra SOMENTE usuarios premium pra receber deals no PV
+        usuarios_premium = {uid: d for uid, d in usuarios.items() if d.get("premium")}
 
-        # Busca deals por regiao e envia pros usuarios dessa regiao
-        for regiao, users in regioes_ativas.items():
-            deals = buscar_novos_deals(regiao)
-            if not deals:
-                continue
+        if usuarios_premium:
+            # Agrupa premiums por regiao
+            regioes_ativas = {}
+            for chat_id_str, user_data in usuarios_premium.items():
+                regiao = user_data.get("regiao", "BR")
+                if regiao not in regioes_ativas:
+                    regioes_ativas[regiao] = []
+                regioes_ativas[regiao].append((chat_id_str, user_data))
 
-            for chat_id_str, user_data in users:
-                chat_id = int(chat_id_str)
-                moeda = user_data.get("moeda", "BRL")
-                idioma = user_data.get("idioma", "en")
-                for deal in deals:
-                    mensagem = formatar_mensagem_com_moeda(deal, moeda, idioma)
-                    try:
-                        await context.bot.send_message(
-                            chat_id=chat_id,
-                            text=mensagem,
-                            parse_mode=ParseMode.HTML,
-                            disable_web_page_preview=True,
-                        )
-                    except Exception as e:
-                        logger.error(f"Erro ao enviar deal para {chat_id}: {e}")
+            # Busca deals por regiao e envia SOMENTE pros premium
+            for regiao, users in regioes_ativas.items():
+                deals = buscar_novos_deals(regiao)
+                if not deals:
+                    continue
 
-        total_users = len(usuarios)
-        logger.info(f"Deals enviados para {total_users} usuario(s) em {len(regioes_ativas)} regiao(oes)")
+                for chat_id_str, user_data in users:
+                    chat_id = int(chat_id_str)
+                    moeda = user_data.get("moeda", "BRL")
+                    idioma = user_data.get("idioma", "en")
+                    for deal in deals:
+                        mensagem = formatar_mensagem_com_moeda(deal, moeda, idioma)
+                        try:
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=mensagem,
+                                parse_mode=ParseMode.HTML,
+                                disable_web_page_preview=True,
+                            )
+                        except Exception as e:
+                            logger.error(f"Erro ao enviar deal para {chat_id}: {e}")
+
+            logger.info(f"Deals enviados para {len(usuarios_premium)} premium(s) em {len(regioes_ativas)} regiao(oes)")
+        else:
+            logger.info("Nenhum usuario premium registrado.")
 
     except Exception as e:
         logger.error(f"Erro no job de feeds: {e}")
 
 
 async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
-    """Job diario: envia resumo matinal."""
-    if not CHANNEL_ID:
-        return
+    """Job diario: envia resumo matinal pro canal free + PV dos premium."""
 
-    texto = (
-        "\u2615 <b>BOM DIA! Alerta Diario de Viagem</b>\n\n"
-        "\U0001F50D Estou monitorando os melhores deals para voce!\n\n"
-        "Fique atento \u2014 error fares podem aparecer a qualquer momento.\n"
-        "\U0001F514 Mantenha as notificacoes ativadas para nao perder nada!\n\n"
-        "\U0001F4AA Boas economias hoje!"
-    )
-
-    try:
-        await context.bot.send_message(
-            chat_id=CHANNEL_ID,
-            text=texto,
-            parse_mode=ParseMode.HTML,
+    # Canal Free: mensagem generica
+    if CHANNEL_ID:
+        texto_free = (
+            "\u2615 <b>Good Morning! Daily Travel Alert</b>\n\n"
+            "\U0001F50D We're monitoring the best deals for you!\n\n"
+            "\U0001F514 Keep notifications on!\n\n"
+            "\U0001F451 Want error fares in real-time? Upgrade to Premium!"
         )
-    except Exception as e:
-        logger.error(f"Erro no alerta diario: {e}")
+        try:
+            await context.bot.send_message(chat_id=CHANNEL_ID, text=texto_free, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            logger.error(f"Erro alerta diario canal free: {e}")
+
+    # Premium: mensagem VIP + deals personalizados no PV
+    usuarios = carregar_usuarios()
+    usuarios_premium = {uid: d for uid, d in usuarios.items() if d.get("premium")}
+
+    for chat_id_str, user_data in usuarios_premium.items():
+        chat_id = int(chat_id_str)
+        idioma = user_data.get("idioma", "en")
+        moeda = user_data.get("moeda", "BRL")
+        regiao = user_data.get("regiao", "BR")
+
+        if idioma == "pt":
+            texto_vip = (
+                "\u2615 <b>Bom dia, membro Premium!</b> \U0001F451\n\n"
+                "\U0001F50D Monitorando 23 fontes de deals pra voc\u00EA.\n"
+                "\U0001F6A8 Error fares exclusivos chegam direto aqui.\n\n"
+                "\U0001F4AA Boas economias hoje!"
+            )
+        else:
+            texto_vip = (
+                "\u2615 <b>Good morning, Premium member!</b> \U0001F451\n\n"
+                "\U0001F50D Monitoring 23 deal sources for you.\n"
+                "\U0001F6A8 Exclusive error fares delivered right here.\n\n"
+                "\U0001F4AA Happy savings today!"
+            )
+
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=texto_vip, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            logger.error(f"Erro alerta diario premium {chat_id}: {e}")
 
 
 # ==================== CALLBACKS ====================
@@ -463,6 +560,7 @@ def main():
     app.add_handler(CommandHandler("moeda", cmd_moeda))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("enviar", cmd_enviar))
+    app.add_handler(CommandHandler("premium", cmd_premium))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
     # Jobs automaticos
@@ -550,6 +648,7 @@ def main_render():
     app.add_handler(CommandHandler("moeda", cmd_moeda))
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("enviar", cmd_enviar))
+    app.add_handler(CommandHandler("premium", cmd_premium))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
     job_queue = app.job_queue
