@@ -73,19 +73,32 @@ def salvar_usuarios(usuarios: dict):
         json.dump(usuarios, f, ensure_ascii=False, indent=2)
 
 
-def adicionar_usuario(chat_id: int, regiao: str = "BR", lang_code: str = ""):
+def adicionar_usuario(chat_id: int, regiao: str = "BR", lang_code: str = "", username: str = ""):
     usuarios = carregar_usuarios()
     info_regiao = REGIOES.get(regiao, REGIOES["BR"])
     idioma = detectar_idioma(lang_code, regiao)
     # Preserva status premium se ja existia
-    premium = usuarios.get(str(chat_id), {}).get("premium", False)
+    existing = usuarios.get(str(chat_id), {})
+    premium = existing.get("premium", False)
     usuarios[str(chat_id)] = {
         "regiao": regiao,
         "moeda": info_regiao["moeda"],
         "idioma": idioma,
         "premium": premium,
+        "username": username or existing.get("username", ""),
     }
     salvar_usuarios(usuarios)
+
+
+def find_user_by_username(username: str) -> str:
+    """Encontra chat_id pelo @username do Telegram."""
+    usuarios = carregar_usuarios()
+    username_lower = username.lower().lstrip("@")
+    for chat_id_str, data in usuarios.items():
+        stored = data.get("username", "").lower().lstrip("@")
+        if stored and stored == username_lower:
+            return chat_id_str
+    return ""
 
 
 def is_premium(chat_id: int) -> bool:
@@ -122,8 +135,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Detecta idioma pelo Telegram e salva
     idioma = detectar_idioma(lang_code)
-    adicionar_usuario(chat_id, "BR", lang_code)
-    logger.info(f"Usuario registrado: {usuario} (ID: {chat_id}, lang: {lang_code}, idioma: {idioma})")
+    tg_username = update.effective_user.username or ""
+    adicionar_usuario(chat_id, "BR", lang_code, tg_username)
+    logger.info(f"Usuario registrado: {usuario} (ID: {chat_id}, @{tg_username}, lang: {lang_code}, idioma: {idioma})")
 
     texto = t("welcome", idioma, nome=usuario)
 
@@ -501,7 +515,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang_code = query.from_user.language_code or ""
 
         if regiao in REGIOES:
-            adicionar_usuario(chat_id, regiao, lang_code)
+            tg_username = query.from_user.username or ""
+            adicionar_usuario(chat_id, regiao, lang_code, tg_username)
             info = REGIOES[regiao]
             idioma = detectar_idioma(lang_code, regiao)
 
@@ -602,12 +617,81 @@ def main_render():
 
     port = int(os.environ.get("PORT", 10000))
 
+    # Referencia ao app do Telegram (preenchida depois)
+    telegram_app_ref = [None]
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
             self.wfile.write(b"Bot de Alertas de Viagem rodando!")
+
+        def do_POST(self):
+            """Recebe webhooks do Stripe para ativar premium automaticamente."""
+            if self.path == "/webhook/stripe":
+                try:
+                    content_length = int(self.headers.get("Content-Length", 0))
+                    body = self.rfile.read(content_length)
+                    data = json.loads(body)
+
+                    event_type = data.get("type", "")
+                    logger.info(f"Stripe webhook recebido: {event_type}")
+
+                    if event_type == "checkout.session.completed":
+                        session = data.get("data", {}).get("object", {})
+                        custom_fields = session.get("custom_fields", [])
+
+                        # Busca o @username do Telegram nos custom fields
+                        tg_username = ""
+                        for field in custom_fields:
+                            if field.get("key") == "telegram_username":
+                                tg_username = field.get("text", {}).get("value", "")
+                                break
+
+                        if tg_username:
+                            # Encontra usuario pelo username
+                            chat_id_str = find_user_by_username(tg_username)
+
+                            if chat_id_str:
+                                usuarios = carregar_usuarios()
+                                usuarios[chat_id_str]["premium"] = True
+                                salvar_usuarios(usuarios)
+                                logger.info(f"PREMIUM ATIVADO automaticamente para @{tg_username} (ID: {chat_id_str})")
+
+                                # Envia mensagem de boas-vindas premium
+                                if telegram_app_ref[0]:
+                                    import asyncio
+                                    chat_id = int(chat_id_str)
+                                    idioma = usuarios[chat_id_str].get("idioma", "en")
+                                    msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYour payment was confirmed automatically!\nYou now receive exclusive error fares and real-time alerts directly!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nSeu pagamento foi confirmado automaticamente!\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real!"
+                                    try:
+                                        loop = asyncio.get_event_loop()
+                                        asyncio.run_coroutine_threadsafe(
+                                            telegram_app_ref[0].bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML"),
+                                            loop
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Erro ao enviar msg premium: {e}")
+                            else:
+                                logger.warning(f"Username @{tg_username} nao encontrado nos usuarios. Ele precisa dar /start primeiro.")
+                        else:
+                            logger.warning("Webhook Stripe sem telegram_username nos custom fields.")
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"status": "ok"}')
+
+                except Exception as e:
+                    logger.error(f"Erro no webhook Stripe: {e}")
+                    self.send_response(500)
+                    self.end_headers()
+                    self.wfile.write(b'{"error": "internal"}')
+            else:
+                self.send_response(404)
+                self.end_headers()
+
         def log_message(self, format, *args):
             pass
 
@@ -645,6 +729,7 @@ def main_render():
     asyncio.set_event_loop(loop)
 
     app = Application.builder().token(BOT_TOKEN).build()
+    telegram_app_ref[0] = app
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("ajuda", cmd_ajuda))
