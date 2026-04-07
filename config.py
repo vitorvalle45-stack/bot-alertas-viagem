@@ -18,18 +18,24 @@ RSS_FEEDS = [
     {"nome": "Melhores Destinos", "url": "https://www.melhoresdestinos.com.br/feed", "tipo": "brasil", "regiao": "BR"},
     {"nome": "Passagens Imperdiveis", "url": "https://www.passagensimperdiveis.com.br/feed/", "tipo": "brasil", "regiao": "BR"},
     {"nome": "Melhores Destinos - Promocoes", "url": "https://www.melhoresdestinos.com.br/category/promocoes/feed", "tipo": "brasil", "regiao": "BR"},
+    # === ERROR FARES (PREMIUM EXCLUSIVO) ===
+    {"nome": "Secret Flying - Error Fares", "url": "https://www.secretflying.com/posts/category/error-fare/feed/", "tipo": "error_fare", "regiao": "ALL"},
+    {"nome": "Google News Error Fares", "url": "https://news.google.com/rss/search?q=%22error+fare%22+OR+%22mistake+fare%22+OR+%22glitch+fare%22+OR+%22fuel+dump%22&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
+    {"nome": "Google News Error Fares PT", "url": "https://news.google.com/rss/search?q=%22erro+tarifa%22+OR+%22passagem+erro%22+OR+%22bug+passagem%22+OR+%22glitch+aereo%22&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "error_fare", "regiao": "BR"},
     # === INTERNACIONAL / GLOBAL ===
     {"nome": "Secret Flying", "url": "https://www.secretflying.com/feed/", "tipo": "internacional", "regiao": "ALL"},
-    {"nome": "Secret Flying - Error Fares", "url": "https://www.secretflying.com/errorfare/feed/", "tipo": "error_fare", "regiao": "ALL"},
     {"nome": "Fly4Free", "url": "https://www.fly4free.com/feed/", "tipo": "internacional", "regiao": "ALL"},
+    {"nome": "FareDealAlert", "url": "https://faredealalert.com/feed/", "tipo": "internacional", "regiao": "US"},
     {"nome": "The Flight Deal", "url": "https://www.theflightdeal.com/feed/", "tipo": "internacional", "regiao": "US"},
     # === UK / EUROPA ===
     {"nome": "HolidayPirates", "url": "https://www.holidaypirates.com/feed", "tipo": "internacional", "regiao": "UK"},
-    {"nome": "TravelFree", "url": "https://travelfree.info/feed/", "tipo": "error_fare", "regiao": "EU"},
+    {"nome": "TravelFree", "url": "https://travelfree.info/feed/", "tipo": "internacional", "regiao": "EU"},
     {"nome": "Travel-Dealz", "url": "https://travel-dealz.com/feed/", "tipo": "internacional", "regiao": "EU"},
     # === EUA ===
     {"nome": "TravelPirates", "url": "https://www.travelpirates.com/feed", "tipo": "internacional", "regiao": "US"},
     {"nome": "Thrifty Traveler", "url": "https://thriftytraveler.com/feed/", "tipo": "internacional", "regiao": "US"},
+    {"nome": "The Points Guy", "url": "https://thepointsguy.com/feed/", "tipo": "internacional", "regiao": "US"},
+    {"nome": "One Mile at a Time", "url": "https://onemileatatime.com/feed/", "tipo": "internacional", "regiao": "US"},
     # === AUSTRALIA ===
     {"nome": "I Know The Pilot", "url": "https://iknowthepilot.com.au/feed", "tipo": "internacional", "regiao": "AU"},
     # === CANADA ===
@@ -39,6 +45,8 @@ RSS_FEEDS = [
     {"nome": "Promodescuentos Vuelos", "url": "https://www.promodescuentos.com/rss/grupo/boletos-de-avion", "tipo": "internacional", "regiao": "MX"},
     # === ALEMANHA ===
     {"nome": "Urlaubspiraten", "url": "https://www.urlaubspiraten.de/feed", "tipo": "internacional", "regiao": "EU"},
+    # === ITALIA ===
+    {"nome": "Piratinviaggio", "url": "https://www.piratinviaggio.it/feed", "tipo": "internacional", "regiao": "EU"},
 ]
 
 # Cidades/aeroportos por regiao (para detectar origem dos deals)
@@ -156,7 +164,7 @@ INTERVALO_CHECAGEM = 15 * 60  # 15 minutos
 HORARIO_ALERTA_DIARIO = (6, 0)
 
 # Maximo de deals por checagem
-MAX_DEALS_POR_CHECAGEM = 5
+MAX_DEALS_POR_CHECAGEM = 10
 
 # Score minimo para enviar um deal (filtra deals irrelevantes)
 # Deals saindo do Brasil tem score 10+, destinos populares 5+

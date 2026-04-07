@@ -116,19 +116,40 @@ def calcular_relevancia(titulo: str, resumo: str, regiao_usuario: str = "BR") ->
             resultado["tags"].append(destino.title())
             break
 
-    # Bonus para error fares / mistake fares (+8 pontos)
-    termos_error = ["error", "mistake", "glitch", "bug", "erro", "falha"]
+    # Bonus para error fares / mistake fares (+15 pontos - PREMIUM)
+    termos_error = [
+        "error fare", "mistake fare", "glitch fare", "fuel dump",
+        "pricing error", "pricing mistake", "pricing glitch",
+        "error", "mistake", "glitch", "bug fare",
+        "erro tarif", "erro de preco", "bug passagem",
+        "too good to be true", "book fast", "won't last",
+        "hurry", "act fast", "disappear",
+    ]
     for termo in termos_error:
         if termo in texto:
-            resultado["score"] += 8
+            resultado["score"] += 15
             resultado["error_fare"] = True
-            resultado["tags"].append("Error Fare")
+            resultado["tags"].append("\U0001F6A8 ERROR FARE")
             break
+
+    # Detecta precos absurdamente baixos = provavel error fare
+    import re
+    precos = re.findall(r'\$\s*(\d+)', texto)
+    for p in precos:
+        valor = int(p)
+        # Voo internacional por menos de $200 = quase certeza error fare
+        if valor > 0 and valor < 200:
+            internacional = any(d in texto for d in DESTINOS_POPULARES)
+            if internacional and not resultado["error_fare"]:
+                resultado["score"] += 12
+                resultado["error_fare"] = True
+                resultado["tags"].append("\U0001F6A8 POSSIBLE ERROR FARE")
+                break
 
     # Bonus para precos muito baixos mencionados (+3 pontos)
     termos_barato = [
         "cheap", "deal", "sale", "promo", "barato", "oferta",
-        "desconto", "$1", "$2", "$3", "from $",
+        "desconto", "from $",
     ]
     for termo in termos_barato:
         if termo in texto:
@@ -361,7 +382,8 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
     linhas.append(f"{emoji_tipo} <b>{t('alerta_passagem', idioma)}</b>")
 
     if rel["error_fare"]:
-        linhas.append(f"\U0001F6A8 <b>{t('error_fare', idioma)}</b>")
+        linhas.append(f"\U0001F6A8\U0001F6A8\U0001F6A8 <b>{t('error_fare', idioma)}</b>")
+        linhas.append("\u26A0\uFE0F <i>Book NOW - may disappear in hours!</i>")
 
     linhas.append("")
 
@@ -433,6 +455,13 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
 
                 # Calcula relevancia com a regiao do usuario
                 relevancia = calcular_relevancia(titulo, resumo, regiao_usuario)
+
+                # Se o feed eh tipo error_fare, marca automaticamente
+                if feed_config.get("tipo") == "error_fare" and not relevancia["error_fare"]:
+                    relevancia["error_fare"] = True
+                    relevancia["score"] += 10
+                    if "\U0001F6A8 ERROR FARE" not in relevancia["tags"]:
+                        relevancia["tags"].append("\U0001F6A8 ERROR FARE")
 
                 # Bonus se o feed eh da regiao do usuario (+5)
                 if feed_config.get("regiao") == regiao_usuario:
