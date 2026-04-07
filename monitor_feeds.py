@@ -428,6 +428,13 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
     return "\n".join(linhas)
 
 
+# Track feed failures for health monitoring
+_feed_failures = {}
+
+def get_feed_health():
+    """Retorna dict de feeds com falhas consecutivas >= 3."""
+    return {nome: count for nome, count in _feed_failures.items() if count >= 3}
+
 def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
     """
     Busca feeds RSS e retorna deals novos ordenados por relevancia.
@@ -454,11 +461,21 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
         logger.info(f"Verificando feed: {nome}")
 
         try:
-            feed = feedparser.parse(url)
+            import socket
+            old_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(10)
+            try:
+                feed = feedparser.parse(url)
+            finally:
+                socket.setdefaulttimeout(old_timeout)
 
             if feed.bozo and not feed.entries:
                 logger.warning(f"Erro ao parsear feed {nome}: {feed.bozo_exception}")
+                _feed_failures[nome] = _feed_failures.get(nome, 0) + 1
                 continue
+
+            # Feed OK — reset failure count
+            _feed_failures[nome] = 0
 
             for entry in feed.entries[:15]:
                 titulo = entry.get("title", "")
@@ -490,6 +507,7 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
 
         except Exception as e:
             logger.error(f"Erro ao buscar feed {nome}: {e}")
+            _feed_failures[nome] = _feed_failures.get(nome, 0) + 1
             continue
 
     # Ordena por relevancia (maior primeiro)

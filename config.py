@@ -17,8 +17,9 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 RSS_FEEDS = [
     # === BRASIL ===
     {"nome": "Melhores Destinos", "url": "https://www.melhoresdestinos.com.br/feed", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Passagens Imperdiveis", "url": "https://www.passagensimperdiveis.com.br/feed/", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Melhores Destinos - Promocoes", "url": "https://www.melhoresdestinos.com.br/category/promocoes/feed", "tipo": "brasil", "regiao": "BR"},
+    {"nome": "Passagens Imperdiveis", "url": "https://www.passagensimperdiveis.com.br/feed", "tipo": "brasil", "regiao": "BR"},
+    {"nome": "Melhores Destinos - Promocoes", "url": "https://www.melhoresdestinos.com.br/promocoes/feed", "tipo": "brasil", "regiao": "BR"},
+    {"nome": "Voopter Blog", "url": "https://www.voopter.com.br/blog/feed/", "tipo": "brasil", "regiao": "BR"},
     # === ERROR FARES (PREMIUM EXCLUSIVO) ===
     {"nome": "Secret Flying - Error Fares", "url": "https://www.secretflying.com/posts/category/error-fare/feed/", "tipo": "error_fare", "regiao": "ALL"},
     {"nome": "Google News Error Fares", "url": "https://news.google.com/rss/search?q=%22error+fare%22+OR+%22mistake+fare%22+OR+%22glitch+fare%22+OR+%22fuel+dump%22&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
@@ -56,7 +57,7 @@ RSS_FEEDS = [
     {"nome": "Traicy", "url": "https://en.traicy.com/feed", "tipo": "internacional", "regiao": "JP"},
     # === ERROR FARES EXTRA ===
     {"nome": "Google News Fuel Dump", "url": "https://news.google.com/rss/search?q=%22fuel+dump%22+airline+OR+flight&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
-    {"nome": "FlyerTalk Deals", "url": "http://www.flyertalk.com/forum/external.php?type=RSS2&forumids=372", "tipo": "error_fare", "regiao": "ALL"},
+    {"nome": "FlyerTalk Deals", "url": "https://www.flyertalk.com/forum/external.php?type=RSS2&forumids=372", "tipo": "error_fare", "regiao": "ALL"},
 ]
 
 # Cidades/aeroportos por regiao (para detectar origem dos deals)

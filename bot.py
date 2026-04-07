@@ -27,7 +27,7 @@ from config import (
     RSS_FEEDS,
     STRIPE_WEBHOOK_SECRET,
 )
-from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda, marcar_deals_enviados
+from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda, marcar_deals_enviados, get_feed_health
 from traducoes import t, detectar_idioma
 
 # Logging
@@ -475,6 +475,19 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
         else:
             logger.info("Nenhum usuario premium registrado.")
 
+        # Check feed health — alert admin if feeds failing consistently
+        broken_feeds = get_feed_health()
+        if broken_feeds and ADMIN_ID:
+            feeds_list = "\n".join([f"  \u274C {nome} ({count}x)" for nome, count in broken_feeds.items()])
+            try:
+                await context.bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=f"\u26A0\uFE0F <b>Feeds com falhas consecutivas:</b>\n{feeds_list}",
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception:
+                pass
+
     except Exception as e:
         logger.error(f"Erro no job de feeds: {e}")
 
@@ -628,9 +641,24 @@ def main():
 
         logger.info("Jobs automaticos configurados!")
 
+    # Error handler global
+    async def error_handler(update, context):
+        logger.error(f"Erro no bot: {context.error}", exc_info=context.error)
+        if ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=f"\u26A0\uFE0F <b>Erro no bot:</b>\n<code>{str(context.error)[:500]}</code>",
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception:
+                pass
+
+    app.add_error_handler(error_handler)
+
     # Inicia o bot
     print("Bot rodando! Pressione Ctrl+C para parar.\n")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
 def main_render():
@@ -800,7 +828,22 @@ def main_render():
             name="alerta_diario",
         )
 
-    app.run_polling(drop_pending_updates=True)
+    # Error handler global (Render)
+    async def error_handler_render(update, context):
+        logger.error(f"Erro no bot: {context.error}", exc_info=context.error)
+        if ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=f"\u26A0\uFE0F <b>Erro no bot:</b>\n<code>{str(context.error)[:500]}</code>",
+                    parse_mode=ParseMode.HTML,
+                )
+            except Exception:
+                pass
+
+    app.add_error_handler(error_handler_render)
+
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
