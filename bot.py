@@ -299,8 +299,10 @@ async def cmd_enviar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """(Admin) Adiciona ou remove usuario premium. Uso: /premium add ID ou /premium remove ID"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("\u274C Comando restrito ao admin.")
+    user_id = update.effective_user.id
+    logger.info(f"cmd_premium chamado por {user_id}, ADMIN_ID={ADMIN_ID}")
+    if user_id != ADMIN_ID:
+        await update.message.reply_text(f"\u274C Comando restrito ao admin. (seu ID: {user_id})")
         return
 
     args = context.args
@@ -544,7 +546,9 @@ def main():
     print("\n" + "=" * 50)
     print("  BOT DE ALERTAS DE VIAGEM")
     print("=" * 50)
-    print(f"\n  Canal: {CHANNEL_ID or 'NAO CONFIGURADO'}")
+    print(f"\n  Canal Free: {CHANNEL_ID or 'NAO CONFIGURADO'}")
+    print(f"  Canal Premium: {PREMIUM_CHANNEL_ID or 'NAO CONFIGURADO'}")
+    print(f"  Admin ID: {ADMIN_ID}")
     print(f"  Checagem a cada: {INTERVALO_CHECAGEM // 60} minutos")
     print(f"  Alerta diario: {HORARIO_ALERTA_DIARIO[0]:02d}:{HORARIO_ALERTA_DIARIO[1]:02d}")
     print(f"\n  Iniciando bot...")
