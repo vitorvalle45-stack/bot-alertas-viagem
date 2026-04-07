@@ -11,6 +11,7 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
 PREMIUM_CHANNEL_ID = os.getenv("TELEGRAM_PREMIUM_CHANNEL_ID", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 # RSS Feeds para monitorar (organizados por regiao)
 RSS_FEEDS = [

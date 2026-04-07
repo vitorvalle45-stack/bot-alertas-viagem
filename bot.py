@@ -25,6 +25,7 @@ from config import (
     INTERVALO_CHECAGEM,
     HORARIO_ALERTA_DIARIO,
     RSS_FEEDS,
+    STRIPE_WEBHOOK_SECRET,
 )
 from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda, marcar_deals_enviados
 from traducoes import t, detectar_idioma
@@ -228,9 +229,23 @@ async def cmd_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(t("ajuda", idioma), parse_mode=ParseMode.HTML)
 
 
+# Rate limiting: ultimo uso do /buscar por usuario
+_buscar_cooldown = {}
+
 async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Busca manualmente os ultimos deals."""
+    """Busca manualmente os ultimos deals (rate limited: 1x por 60s)."""
+    import time as _time
     chat_id = update.effective_chat.id
+
+    # Rate limit: 60 segundos entre buscas
+    now = _time.time()
+    last = _buscar_cooldown.get(chat_id, 0)
+    if now - last < 60:
+        wait = int(60 - (now - last))
+        await update.message.reply_text(f"\u23F3 Wait {wait}s before searching again.")
+        return
+    _buscar_cooldown[chat_id] = now
+
     idioma = get_idioma_usuario(chat_id)
     moeda = get_moeda_usuario(chat_id)
     regiao = get_regiao_usuario(chat_id)
@@ -251,8 +266,8 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(mensagem, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
 
     except Exception as e:
-        logger.error(f"Erro ao buscar deals: {e}")
-        await update.message.reply_text(f"\u274C Erro ao buscar deals: {e}")
+        logger.error(f"Erro ao buscar deals para {chat_id}: {e}")
+        await update.message.reply_text("\u274C An error occurred. Please try again later.")
 
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -322,7 +337,7 @@ async def cmd_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     logger.info(f"cmd_premium chamado por {user_id}, ADMIN_ID={ADMIN_ID}")
     if user_id != ADMIN_ID:
-        await update.message.reply_text(f"\u274C Comando restrito ao admin. (seu ID: {user_id})")
+        await update.message.reply_text("\u274C Comando restrito ao admin.")
         return
 
     args = context.args
@@ -638,21 +653,44 @@ def main_render():
             self.wfile.write(b"Bot de Alertas de Viagem rodando!")
 
         def do_POST(self):
-            """Recebe webhooks do Stripe para ativar premium automaticamente."""
+            """Recebe webhooks do Stripe com verificacao de assinatura."""
             if self.path == "/webhook/stripe":
                 try:
+                    import stripe
                     content_length = int(self.headers.get("Content-Length", 0))
                     body = self.rfile.read(content_length)
-                    data = json.loads(body)
 
-                    event_type = data.get("type", "")
-                    logger.info(f"Stripe webhook recebido: {event_type}")
+                    # SEGURANCA: Verifica assinatura do Stripe
+                    sig_header = self.headers.get("Stripe-Signature", "")
+                    if not STRIPE_WEBHOOK_SECRET:
+                        logger.error("STRIPE_WEBHOOK_SECRET nao configurado!")
+                        self.send_response(500)
+                        self.end_headers()
+                        return
+
+                    try:
+                        event = stripe.Webhook.construct_event(
+                            body, sig_header, STRIPE_WEBHOOK_SECRET
+                        )
+                    except stripe.error.SignatureVerificationError:
+                        logger.warning("Webhook Stripe com assinatura INVALIDA - possivel ataque!")
+                        self.send_response(403)
+                        self.end_headers()
+                        self.wfile.write(b'{"error": "invalid signature"}')
+                        return
+                    except Exception as e:
+                        logger.error(f"Erro verificando assinatura: {e}")
+                        self.send_response(400)
+                        self.end_headers()
+                        return
+
+                    event_type = event.get("type", "")
+                    logger.info(f"Stripe webhook VERIFICADO: {event_type}")
 
                     if event_type == "checkout.session.completed":
-                        session = data.get("data", {}).get("object", {})
+                        session = event.get("data", {}).get("object", {})
                         custom_fields = session.get("custom_fields", [])
 
-                        # Busca o @username do Telegram nos custom fields
                         tg_username = ""
                         for field in custom_fields:
                             if field.get("key") == "telegram_username":
@@ -660,21 +698,19 @@ def main_render():
                                 break
 
                         if tg_username:
-                            # Encontra usuario pelo username
                             chat_id_str = find_user_by_username(tg_username)
 
                             if chat_id_str:
                                 usuarios = carregar_usuarios()
                                 usuarios[chat_id_str]["premium"] = True
                                 salvar_usuarios(usuarios)
-                                logger.info(f"PREMIUM ATIVADO automaticamente para @{tg_username} (ID: {chat_id_str})")
+                                logger.info(f"PREMIUM ATIVADO para @{tg_username} (ID: {chat_id_str})")
 
-                                # Envia mensagem de boas-vindas premium
                                 if telegram_app_ref[0] and event_loop_ref[0]:
                                     import asyncio
                                     chat_id = int(chat_id_str)
                                     idioma = usuarios[chat_id_str].get("idioma", "en")
-                                    msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYour payment was confirmed automatically!\nYou now receive exclusive error fares and real-time alerts directly!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nSeu pagamento foi confirmado automaticamente!\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real!"
+                                    msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYour payment was confirmed!\nYou now receive exclusive error fares and real-time alerts!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nSeu pagamento foi confirmado!\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real!"
                                     try:
                                         asyncio.run_coroutine_threadsafe(
                                             telegram_app_ref[0].bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML"),
@@ -683,9 +719,9 @@ def main_render():
                                     except Exception as e:
                                         logger.error(f"Erro ao enviar msg premium: {e}")
                             else:
-                                logger.warning(f"Username @{tg_username} nao encontrado nos usuarios. Ele precisa dar /start primeiro.")
+                                logger.warning(f"@{tg_username} nao encontrado. Precisa dar /start primeiro.")
                         else:
-                            logger.warning("Webhook Stripe sem telegram_username nos custom fields.")
+                            logger.warning("Webhook sem telegram_username.")
 
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
@@ -693,10 +729,9 @@ def main_render():
                     self.wfile.write(b'{"status": "ok"}')
 
                 except Exception as e:
-                    logger.error(f"Erro no webhook Stripe: {e}")
+                    logger.error(f"Erro no webhook: {e}")
                     self.send_response(500)
                     self.end_headers()
-                    self.wfile.write(b'{"error": "internal"}')
             else:
                 self.send_response(404)
                 self.end_headers()
