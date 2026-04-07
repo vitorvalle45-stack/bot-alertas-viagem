@@ -641,10 +641,18 @@ def main():
 
         logger.info("Jobs automaticos configurados!")
 
-    # Error handler global
+    # Error handler global (com anti-spam: 1 alerta por tipo a cada 5 min)
+    _error_cache = {}
+
     async def error_handler(update, context):
-        logger.error(f"Erro no bot: {context.error}", exc_info=context.error)
-        if ADMIN_ID:
+        import time as _time
+        error_key = str(type(context.error).__name__)
+        now = _time.time()
+        last = _error_cache.get(error_key, 0)
+        logger.error(f"Erro no bot: {context.error}")
+        # So envia alerta se nao enviou o mesmo tipo nos ultimos 5 min
+        if ADMIN_ID and (now - last) > 300:
+            _error_cache[error_key] = now
             try:
                 await context.bot.send_message(
                     chat_id=ADMIN_ID,
@@ -828,10 +836,17 @@ def main_render():
             name="alerta_diario",
         )
 
-    # Error handler global (Render)
+    # Error handler global (Render, com anti-spam)
+    _error_cache_r = {}
+
     async def error_handler_render(update, context):
-        logger.error(f"Erro no bot: {context.error}", exc_info=context.error)
-        if ADMIN_ID:
+        import time as _time
+        error_key = str(type(context.error).__name__)
+        now = _time.time()
+        last = _error_cache_r.get(error_key, 0)
+        logger.error(f"Erro no bot: {context.error}")
+        if ADMIN_ID and (now - last) > 300:
+            _error_cache_r[error_key] = now
             try:
                 await context.bot.send_message(
                     chat_id=ADMIN_ID,
