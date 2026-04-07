@@ -4,6 +4,7 @@ Envia deals de passagens aereas baratas automaticamente.
 """
 import json
 import logging
+import os
 from datetime import time as dt_time
 from pathlib import Path
 
@@ -23,8 +24,9 @@ from config import (
     ADMIN_ID,
     INTERVALO_CHECAGEM,
     HORARIO_ALERTA_DIARIO,
+    RSS_FEEDS,
 )
-from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda
+from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda, marcar_deals_enviados
 from traducoes import t, detectar_idioma
 
 # Logging
@@ -59,17 +61,21 @@ REGIOES = {
 def carregar_usuarios() -> dict:
     caminho = Path(ARQUIVO_USUARIOS)
     if caminho.exists():
-        with open(caminho, "r") as f:
-            dados = json.load(f)
-        # Compatibilidade: se for lista antiga, converte pra dict
-        if isinstance(dados, list):
-            return {str(uid): {"regiao": "BR", "moeda": "BRL"} for uid in dados}
-        return dados
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            # Compatibilidade: se for lista antiga, converte pra dict
+            if isinstance(dados, list):
+                return {str(uid): {"regiao": "BR", "moeda": "BRL"} for uid in dados}
+            return dados
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Erro ao ler {ARQUIVO_USUARIOS}, usando vazio: {e}")
+            return {}
     return {}
 
 
 def salvar_usuarios(usuarios: dict):
-    with open(ARQUIVO_USUARIOS, "w") as f:
+    with open(ARQUIVO_USUARIOS, "w", encoding="utf-8") as f:
         json.dump(usuarios, f, ensure_ascii=False, indent=2)
 
 
@@ -413,6 +419,9 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         logger.debug(f"Canal Free nao disponivel: {e}")
 
+            # Marca deals dos canais como enviados
+            marcar_deals_enviados(deals_canal)
+
         # Filtra SOMENTE usuarios premium pra receber deals no PV
         usuarios_premium = {uid: d for uid, d in usuarios.items() if d.get("premium")}
 
@@ -484,14 +493,14 @@ async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
         if idioma == "pt":
             texto_vip = (
                 "\u2615 <b>Bom dia, membro Premium!</b> \U0001F451\n\n"
-                "\U0001F50D Monitorando 23 fontes de deals pra voc\u00EA.\n"
+                f"\U0001F50D Monitorando {len(RSS_FEEDS)} fontes de deals pra voc\u00EA.\n"
                 "\U0001F6A8 Error fares exclusivos chegam direto aqui.\n\n"
                 "\U0001F4AA Boas economias hoje!"
             )
         else:
             texto_vip = (
                 "\u2615 <b>Good morning, Premium member!</b> \U0001F451\n\n"
-                "\U0001F50D Monitoring 23 deal sources for you.\n"
+                f"\U0001F50D Monitoring {len(RSS_FEEDS)} deal sources for you.\n"
                 "\U0001F6A8 Exclusive error fares delivered right here.\n\n"
                 "\U0001F4AA Happy savings today!"
             )
@@ -617,8 +626,9 @@ def main_render():
 
     port = int(os.environ.get("PORT", 10000))
 
-    # Referencia ao app do Telegram (preenchida depois)
+    # Referencia ao app do Telegram e event loop (preenchida depois)
     telegram_app_ref = [None]
+    event_loop_ref = [None]
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -660,16 +670,15 @@ def main_render():
                                 logger.info(f"PREMIUM ATIVADO automaticamente para @{tg_username} (ID: {chat_id_str})")
 
                                 # Envia mensagem de boas-vindas premium
-                                if telegram_app_ref[0]:
+                                if telegram_app_ref[0] and event_loop_ref[0]:
                                     import asyncio
                                     chat_id = int(chat_id_str)
                                     idioma = usuarios[chat_id_str].get("idioma", "en")
                                     msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYour payment was confirmed automatically!\nYou now receive exclusive error fares and real-time alerts directly!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nSeu pagamento foi confirmado automaticamente!\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real!"
                                     try:
-                                        loop = asyncio.get_event_loop()
                                         asyncio.run_coroutine_threadsafe(
                                             telegram_app_ref[0].bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML"),
-                                            loop
+                                            event_loop_ref[0]
                                         )
                                     except Exception as e:
                                         logger.error(f"Erro ao enviar msg premium: {e}")
@@ -730,6 +739,7 @@ def main_render():
 
     app = Application.builder().token(BOT_TOKEN).build()
     telegram_app_ref[0] = app
+    event_loop_ref[0] = loop
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("ajuda", cmd_ajuda))

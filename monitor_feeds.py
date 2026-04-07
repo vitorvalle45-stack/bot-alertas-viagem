@@ -117,28 +117,41 @@ def calcular_relevancia(titulo: str, resumo: str, regiao_usuario: str = "BR") ->
             break
 
     # Bonus para error fares / mistake fares (+15 pontos - PREMIUM)
-    termos_error = [
+    # Termos especificos primeiro (alta confianca)
+    termos_error_forte = [
         "error fare", "mistake fare", "glitch fare", "fuel dump",
         "pricing error", "pricing mistake", "pricing glitch",
-        "error", "mistake", "glitch", "bug fare",
-        "erro tarif", "erro de preco", "bug passagem",
-        "too good to be true", "book fast", "won't last",
-        "hurry", "act fast", "disappear",
+        "bug fare", "erro tarif", "erro de preco", "bug passagem",
     ]
-    for termo in termos_error:
+    # Termos genericos (media confianca - precisam estar perto de "fare"/"flight"/"price")
+    termos_error_fraco = ["too good to be true", "book fast", "won't last", "act fast"]
+
+    found_error = False
+    for termo in termos_error_forte:
         if termo in texto:
             resultado["score"] += 15
             resultado["error_fare"] = True
             resultado["tags"].append("\U0001F6A8 ERROR FARE")
+            found_error = True
             break
+
+    if not found_error:
+        for termo in termos_error_fraco:
+            if termo in texto:
+                resultado["score"] += 8
+                resultado["error_fare"] = True
+                resultado["tags"].append("\U0001F6A8 POSSIBLE ERROR FARE")
+                found_error = True
+                break
 
     # Detecta precos absurdamente baixos = provavel error fare
     import re
     precos = re.findall(r'\$\s*(\d+)', texto)
     for p in precos:
         valor = int(p)
-        # Voo internacional por menos de $200 = quase certeza error fare
-        if valor > 0 and valor < 200:
+        # Voo internacional por menos de $150 e nao eh desconto
+        desconto = any(w in texto for w in ["off", "save", "discount", "desconto", "cashback"])
+        if valor > 50 and valor < 150 and not desconto:
             internacional = any(d in texto for d in DESTINOS_POPULARES)
             if internacional and not resultado["error_fare"]:
                 resultado["score"] += 12
@@ -235,7 +248,10 @@ def converter_preco(preco_str: str, moeda_destino: str = "BRL") -> str:
     if moeda_destino != "USD":
         texto += f" (~US${valor_usd:,.0f})"
 
-    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+    # Formato brasileiro (1.234,56) apenas para BRL e EUR
+    if moeda_destino in ("BRL", "EUR"):
+        return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+    return texto
 
 
 def extrair_preco(texto: str) -> str:
@@ -383,7 +399,8 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
 
     if rel["error_fare"]:
         linhas.append(f"\U0001F6A8\U0001F6A8\U0001F6A8 <b>{t('error_fare', idioma)}</b>")
-        linhas.append("\u26A0\uFE0F <i>Book NOW - may disappear in hours!</i>")
+        urgencia = "\u26A0\uFE0F <i>Reserve AGORA - pode desaparecer em horas!</i>" if idioma == "pt" else "\u26A0\uFE0F <i>Book NOW - may disappear in hours!</i>"
+        linhas.append(urgencia)
 
     linhas.append("")
 
@@ -481,15 +498,17 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
     # Limita quantidade
     deals_selecionados = novos_deals[:MAX_DEALS_POR_CHECAGEM]
 
-    # Marca como enviados
-    for deal in deals_selecionados:
+    logger.info(f"Encontrados {len(novos_deals)} deals novos, selecionados {len(deals_selecionados)} (regiao: {regiao_usuario})")
+
+    return deals_selecionados
+
+
+def marcar_deals_enviados(deals: list[dict]):
+    """Marca deals como enviados APOS envio bem-sucedido."""
+    deals_enviados = carregar_deals_enviados()
+    for deal in deals:
         deals_enviados[deal["id"]] = {
             "titulo": deal["titulo"],
             "data": deal["timestamp"],
         }
-
     salvar_deals_enviados(deals_enviados)
-
-    logger.info(f"Encontrados {len(novos_deals)} deals novos, selecionados {len(deals_selecionados)} (regiao: {regiao_usuario})")
-
-    return deals_selecionados

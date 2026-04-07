@@ -47,6 +47,15 @@ RSS_FEEDS = [
     {"nome": "Urlaubspiraten", "url": "https://www.urlaubspiraten.de/feed", "tipo": "internacional", "regiao": "EU"},
     # === ITALIA ===
     {"nome": "Piratinviaggio", "url": "https://www.piratinviaggio.it/feed", "tipo": "internacional", "regiao": "EU"},
+    # === ESPANHA ===
+    {"nome": "ViajerosPiratas", "url": "https://www.viajerospiratas.es/feed", "tipo": "internacional", "regiao": "EU"},
+    # === HOLANDA ===
+    {"nome": "TicketSpy", "url": "https://ticketspy.nl/feed/", "tipo": "internacional", "regiao": "EU"},
+    # === ASIA ===
+    {"nome": "Traicy", "url": "https://en.traicy.com/feed", "tipo": "internacional", "regiao": "JP"},
+    # === ERROR FARES EXTRA ===
+    {"nome": "Google News Fuel Dump", "url": "https://news.google.com/rss/search?q=%22fuel+dump%22+airline+OR+flight&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
+    {"nome": "FlyerTalk Deals", "url": "http://www.flyertalk.com/forum/external.php?type=RSS2&forumids=372", "tipo": "error_fare", "regiao": "ALL"},
 ]
 
 # Cidades/aeroportos por regiao (para detectar origem dos deals)
