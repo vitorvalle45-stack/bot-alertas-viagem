@@ -424,16 +424,17 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
 
         if deals_canal:
             for deal in deals_canal:
-                mensagem = formatar_mensagem_telegram(deal)
                 is_error_fare = deal["relevancia"].get("error_fare", False)
+                origem_br = deal["relevancia"].get("origem_regiao") == "BR" or deal["relevancia"].get("origem_brasil", False)
 
-                # Canal PREMIUM: recebe TODOS os deals em tempo real
+                # Canal PREMIUM: recebe TODOS os deals (em portugues, preco em BRL)
                 if PREMIUM_CHANNEL_ID:
                     try:
                         premium_id = int(PREMIUM_CHANNEL_ID) if PREMIUM_CHANNEL_ID.lstrip("-").isdigit() else PREMIUM_CHANNEL_ID
+                        mensagem_prem = formatar_mensagem_com_moeda(deal, "BRL", "pt")
                         await context.bot.send_message(
                             chat_id=premium_id,
-                            text=mensagem,
+                            text=mensagem_prem,
                             parse_mode=ParseMode.HTML,
                             disable_web_page_preview=True,
                         )
@@ -441,12 +442,13 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         logger.error(f"Erro canal Premium: {e}")
 
-                # Canal FREE: recebe apenas deals normais (sem error fares)
-                if CHANNEL_ID and not is_error_fare:
+                # Canal FREE: so deals com origem no Brasil, sem error fares, em portugues
+                if CHANNEL_ID and not is_error_fare and origem_br:
                     try:
+                        mensagem_free = formatar_mensagem_com_moeda(deal, "BRL", "pt")
                         await context.bot.send_message(
                             chat_id=CHANNEL_ID,
-                            text=mensagem,
+                            text=mensagem_free,
                             parse_mode=ParseMode.HTML,
                             disable_web_page_preview=True,
                         )
