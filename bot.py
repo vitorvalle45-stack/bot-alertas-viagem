@@ -26,6 +26,7 @@ from config import (
     HORARIO_ALERTA_DIARIO,
     RSS_FEEDS,
     STRIPE_WEBHOOK_SECRET,
+    VIP_WHITELIST,
 )
 from monitor_feeds import buscar_novos_deals, formatar_mensagem_telegram, formatar_mensagem_com_moeda, marcar_deals_enviados, get_feed_health
 from traducoes import t, detectar_idioma
@@ -109,6 +110,9 @@ def find_user_by_username(username: str) -> str:
 
 
 def is_premium(chat_id: int) -> bool:
+    # VIP whitelist tem acesso Premium permanente
+    if chat_id in VIP_WHITELIST:
+        return True
     usuarios = carregar_usuarios()
     dados = usuarios.get(str(chat_id), {})
     return dados.get("premium", False)

@@ -13,6 +13,13 @@ PREMIUM_CHANNEL_ID = os.getenv("TELEGRAM_PREMIUM_CHANNEL_ID", "")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
+# Whitelist VIP - Premium permanente sem precisar pagar
+# Adicione o Telegram ID (numero) de cada usuario VIP
+VIP_WHITELIST = {
+    ADMIN_ID,  # Admin sempre eh VIP
+    # Antonio Bosco: adicionar ID aqui quando disponivel
+}
+
 # RSS Feeds para monitorar (organizados por regiao)
 RSS_FEEDS = [
     # === BRASIL ===
