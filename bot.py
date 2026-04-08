@@ -459,6 +459,14 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
             # Marca deals dos canais como enviados
             marcar_deals_enviados(deals_canal)
 
+        # Inclui VIPs da whitelist como premium
+        for vip_id in VIP_WHITELIST:
+            vip_str = str(vip_id)
+            if vip_str in usuarios:
+                usuarios[vip_str]["premium"] = True
+            elif vip_id != 0:
+                usuarios[vip_str] = {"regiao": "BR", "moeda": "BRL", "idioma": "pt", "premium": True}
+
         # Filtra SOMENTE usuarios premium pra receber deals no PV
         usuarios_premium = {uid: d for uid, d in usuarios.items() if d.get("premium")}
 
@@ -517,21 +525,28 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
 async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
     """Job diario: envia resumo matinal pro canal free + PV dos premium."""
 
-    # Canal Free: mensagem generica
+    # Canal Free: mensagem em portugues
     if CHANNEL_ID:
         texto_free = (
-            "\u2615 <b>Good Morning! Daily Travel Alert</b>\n\n"
-            "\U0001F50D We're monitoring the best deals for you!\n\n"
-            "\U0001F514 Keep notifications on!\n\n"
-            "\U0001F451 Want error fares in real-time? Upgrade to Premium!"
+            "\u2615 <b>Bom dia! Alerta Diario de Viagem</b>\n\n"
+            "\U0001F50D Estamos monitorando os melhores deals pra voce!\n\n"
+            "\U0001F514 Mantenha as notificacoes ativadas!\n\n"
+            "\U0001F451 Quer error fares em tempo real? Seja Premium!"
         )
         try:
             await context.bot.send_message(chat_id=CHANNEL_ID, text=texto_free, parse_mode=ParseMode.HTML)
         except Exception as e:
             logger.error(f"Erro alerta diario canal free: {e}")
 
-    # Premium: mensagem VIP + deals personalizados no PV
+    # Premium: mensagem VIP no PV (inclui VIP_WHITELIST + premium do JSON)
     usuarios = carregar_usuarios()
+    # Marca VIPs da whitelist como premium no dict
+    for vip_id in VIP_WHITELIST:
+        vip_str = str(vip_id)
+        if vip_str in usuarios:
+            usuarios[vip_str]["premium"] = True
+        elif vip_id != 0:  # Ignora ADMIN_ID=0 (nao configurado)
+            usuarios[vip_str] = {"regiao": "BR", "moeda": "BRL", "idioma": "pt", "premium": True}
     usuarios_premium = {uid: d for uid, d in usuarios.items() if d.get("premium")}
 
     for chat_id_str, user_data in usuarios_premium.items():
