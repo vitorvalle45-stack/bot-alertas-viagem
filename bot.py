@@ -260,6 +260,10 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         deals = buscar_novos_deals(regiao)
 
+        # Free users NAO veem error fares - exclusivo Premium
+        if not is_premium(chat_id):
+            deals = [d for d in deals if not d["relevancia"].get("error_fare", False)]
+
         if not deals:
             await update.message.reply_text(t("nenhum_deal", idioma))
             return
