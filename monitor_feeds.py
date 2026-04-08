@@ -9,6 +9,9 @@ from pathlib import Path
 
 import feedparser
 
+# User-Agent realista para evitar bloqueios 403 em feeds RSS
+FEED_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
 from config import (
     RSS_FEEDS,
     CIDADES_BR,
@@ -26,12 +29,16 @@ def carregar_deals_enviados() -> dict:
     """Carrega historico de deals ja enviados para evitar duplicatas."""
     caminho = Path(ARQUIVO_DEALS_ENVIADOS)
     if caminho.exists():
-        with open(caminho, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-        # Limpa deals com mais de 7 dias para nao crescer infinitamente
-        limite = (datetime.now() - timedelta(days=7)).isoformat()
-        dados = {k: v for k, v in dados.items() if v.get("data", "") > limite}
-        return dados
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            # Limpa deals com mais de 7 dias para nao crescer infinitamente
+            limite = (datetime.now() - timedelta(days=7)).isoformat()
+            dados = {k: v for k, v in dados.items() if v.get("data", "") > limite}
+            return dados
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"deals_enviados.json corrompido, resetando: {e}")
+            return {}
     return {}
 
 
@@ -430,10 +437,21 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
 
 # Track feed failures for health monitoring
 _feed_failures = {}
+_last_health_alert = 0  # timestamp do ultimo alerta de saude enviado
 
 def get_feed_health():
-    """Retorna dict de feeds com falhas consecutivas >= 3."""
-    return {nome: count for nome, count in _feed_failures.items() if count >= 3}
+    """Retorna dict de feeds com falhas consecutivas >= 3, max 1 alerta por hora."""
+    import time as _time
+    global _last_health_alert
+    now = _time.time()
+    broken = {nome: count for nome, count in _feed_failures.items() if count >= 3}
+    if not broken:
+        return {}
+    # Limita alertas: maximo 1 por hora (3600s)
+    if now - _last_health_alert < 3600:
+        return {}
+    _last_health_alert = now
+    return broken
 
 def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
     """
@@ -463,9 +481,12 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
         try:
             import socket
             old_timeout = socket.getdefaulttimeout()
-            socket.setdefaulttimeout(10)
+            socket.setdefaulttimeout(15)
             try:
-                feed = feedparser.parse(url)
+                feed = feedparser.parse(
+                    url,
+                    agent=FEED_USER_AGENT,
+                )
             finally:
                 socket.setdefaulttimeout(old_timeout)
 
@@ -509,6 +530,9 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
             logger.error(f"Erro ao buscar feed {nome}: {e}")
             _feed_failures[nome] = _feed_failures.get(nome, 0) + 1
             continue
+
+    # Filtra deals abaixo do score minimo
+    novos_deals = [d for d in novos_deals if d["relevancia"]["score"] >= SCORE_MINIMO]
 
     # Ordena por relevancia (maior primeiro)
     novos_deals.sort(key=lambda d: d["relevancia"]["score"], reverse=True)

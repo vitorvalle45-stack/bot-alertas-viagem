@@ -17,15 +17,18 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 RSS_FEEDS = [
     # === BRASIL ===
     {"nome": "Melhores Destinos", "url": "https://www.melhoresdestinos.com.br/feed", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Passagens Imperdiveis", "url": "https://www.passagensimperdiveis.com.br/feed", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Melhores Destinos - Promocoes", "url": "https://www.melhoresdestinos.com.br/promocoes/feed", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Voopter Blog", "url": "https://www.voopter.com.br/blog/feed/", "tipo": "brasil", "regiao": "BR"},
+    # Passagens Imperdiveis - REMOVIDO (feed retorna 403/404)
+    # Melhores Destinos Promocoes - REMOVIDO (404, URL nao existe mais)
+    # Voopter Blog - REMOVIDO (404, feed removido)
+    {"nome": "MaxMilhas Blog", "url": "https://www.maxmilhas.com.br/blog/feed", "tipo": "brasil", "regiao": "BR"},
+    {"nome": "Google News Passagens BR", "url": "https://news.google.com/rss/search?q=passagem+aerea+promocao+OR+barata+OR+desconto&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "brasil", "regiao": "BR"},
+    {"nome": "Google News Voos Baratos BR", "url": "https://news.google.com/rss/search?q=voo+barato+OR+%22passagem+barata%22+OR+%22milhas+aereas%22&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "brasil", "regiao": "BR"},
     # === ERROR FARES (PREMIUM EXCLUSIVO) ===
-    {"nome": "Secret Flying - Error Fares", "url": "https://www.secretflying.com/posts/category/error-fare/feed/", "tipo": "error_fare", "regiao": "ALL"},
+    # Secret Flying Error Fares - REMOVIDO (403, retorna HTML em vez de RSS)
     {"nome": "Google News Error Fares", "url": "https://news.google.com/rss/search?q=%22error+fare%22+OR+%22mistake+fare%22+OR+%22glitch+fare%22+OR+%22fuel+dump%22&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
     {"nome": "Google News Error Fares PT", "url": "https://news.google.com/rss/search?q=%22erro+tarifa%22+OR+%22passagem+erro%22+OR+%22bug+passagem%22+OR+%22glitch+aereo%22&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "error_fare", "regiao": "BR"},
     # === INTERNACIONAL / GLOBAL ===
-    {"nome": "Secret Flying", "url": "https://www.secretflying.com/feed/", "tipo": "internacional", "regiao": "ALL"},
+    # Secret Flying - REMOVIDO (403, retorna HTML em vez de RSS)
     {"nome": "Fly4Free", "url": "https://www.fly4free.com/feed/", "tipo": "internacional", "regiao": "ALL"},
     {"nome": "FareDealAlert", "url": "https://faredealalert.com/feed/", "tipo": "internacional", "regiao": "US"},
     {"nome": "The Flight Deal", "url": "https://www.theflightdeal.com/feed/", "tipo": "internacional", "regiao": "US"},
@@ -38,13 +41,16 @@ RSS_FEEDS = [
     {"nome": "Thrifty Traveler", "url": "https://thriftytraveler.com/feed/", "tipo": "internacional", "regiao": "US"},
     {"nome": "The Points Guy", "url": "https://thepointsguy.com/feed/", "tipo": "internacional", "regiao": "US"},
     {"nome": "One Mile at a Time", "url": "https://onemileatatime.com/feed/", "tipo": "internacional", "regiao": "US"},
+    {"nome": "Travel Off Path", "url": "https://www.traveloffpath.com/feed/", "tipo": "internacional", "regiao": "US"},
     # === AUSTRALIA ===
     {"nome": "I Know The Pilot", "url": "https://iknowthepilot.com.au/feed", "tipo": "internacional", "regiao": "AU"},
     # === CANADA ===
     {"nome": "Next Departure", "url": "https://nextdeparture.ca/feed/", "tipo": "internacional", "regiao": "CA"},
     # === MEXICO / LATAM ===
-    {"nome": "Guru de Viaje", "url": "https://gurudeviaje.com/feed/", "tipo": "internacional", "regiao": "MX"},
-    {"nome": "Promodescuentos Vuelos", "url": "https://www.promodescuentos.com/rss/grupo/boletos-de-avion", "tipo": "internacional", "regiao": "MX"},
+    # Guru de Viaje - REMOVIDO (retorna HTML/Next.js, sem RSS)
+    # Promodescuentos Vuelos - REMOVIDO (403 Forbidden)
+    {"nome": "VuelaX", "url": "https://www.vuelax.com/feed/", "tipo": "internacional", "regiao": "MX"},
+    {"nome": "Google News Vuelos MX", "url": "https://news.google.com/rss/search?q=vuelo+barato+OR+%22oferta+vuelo%22+OR+%22error+fare%22&hl=es-419&gl=MX&ceid=MX:es-419", "tipo": "internacional", "regiao": "MX"},
     # === ALEMANHA ===
     {"nome": "Urlaubspiraten", "url": "https://www.urlaubspiraten.de/feed", "tipo": "internacional", "regiao": "EU"},
     # === ITALIA ===

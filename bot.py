@@ -246,6 +246,11 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     _buscar_cooldown[chat_id] = now
 
+    # Limpa cooldowns antigos (> 5 min) para evitar memory leak
+    expired = [k for k, v in _buscar_cooldown.items() if now - v > 300]
+    for k in expired:
+        del _buscar_cooldown[k]
+
     idioma = get_idioma_usuario(chat_id)
     moeda = get_moeda_usuario(chat_id)
     regiao = get_regiao_usuario(chat_id)
@@ -411,8 +416,9 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
                 # Canal PREMIUM: recebe TODOS os deals em tempo real
                 if PREMIUM_CHANNEL_ID:
                     try:
+                        premium_id = int(PREMIUM_CHANNEL_ID) if PREMIUM_CHANNEL_ID.lstrip("-").isdigit() else PREMIUM_CHANNEL_ID
                         await context.bot.send_message(
-                            chat_id=int(PREMIUM_CHANNEL_ID),
+                            chat_id=premium_id,
                             text=mensagem,
                             parse_mode=ParseMode.HTML,
                             disable_web_page_preview=True,
