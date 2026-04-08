@@ -522,11 +522,56 @@ async def job_verificar_feeds(context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Erro no job de feeds: {e}")
 
 
-async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
-    """Job diario: envia resumo matinal pro canal free + PV dos premium."""
+# Fuso horario de cada regiao (offset em horas de UTC)
+FUSO_HORARIO = {
+    "BR": -3,   # Brasilia
+    "US": -5,   # Eastern (NY, Miami)
+    "UK": 0,    # Londres
+    "EU": 1,    # Paris, Berlim, Roma, Madrid
+    "CH": 1,    # Zurique
+    "AU": 10,   # Sydney
+    "AE": 4,    # Dubai
+    "JP": 9,    # Toquio
+    "KR": 9,    # Seul
+    "CA": -5,   # Toronto
+    "DK": 1,    # Copenhague
+    "SE": 1,    # Estocolmo
+    "NO": 1,    # Oslo
+    "MX": -6,   # Cidade do Mexico
+}
 
-    # Canal Free: mensagem em portugues
-    if CHANNEL_ID:
+# Rastreia quais regioes ja receberam alerta hoje (reseta a cada ciclo)
+_alerta_enviado_hoje = {}
+
+
+async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
+    """Job que roda a cada hora e envia alerta as 6h LOCAL de cada regiao."""
+    from datetime import datetime, timezone, timedelta
+    global _alerta_enviado_hoje
+
+    agora_utc = datetime.now(timezone.utc)
+    hora_utc = agora_utc.hour
+    hoje = agora_utc.strftime("%Y-%m-%d")
+
+    # Reseta rastreio ao mudar de dia
+    if _alerta_enviado_hoje.get("_dia") != hoje:
+        _alerta_enviado_hoje = {"_dia": hoje}
+
+    # Descobre quais regioes estao as 6h da manha agora
+    regioes_6am = []
+    for regiao, offset in FUSO_HORARIO.items():
+        hora_local = (hora_utc + offset) % 24
+        if hora_local == HORARIO_ALERTA_DIARIO[0] and regiao not in _alerta_enviado_hoje:
+            regioes_6am.append(regiao)
+            _alerta_enviado_hoje[regiao] = True
+
+    if not regioes_6am:
+        return  # Nenhuma regiao esta as 6h agora
+
+    logger.info(f"Alerta diario: 6h local para regioes {regioes_6am}")
+
+    # Canal Free: envia 1x quando for 6h no Brasil
+    if "BR" in regioes_6am and CHANNEL_ID:
         texto_free = (
             "\u2615 <b>Bom dia! Alerta Diario de Viagem</b>\n\n"
             "\U0001F50D Estamos monitorando os melhores deals pra voce!\n\n"
@@ -538,22 +583,24 @@ async def job_alerta_diario(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Erro alerta diario canal free: {e}")
 
-    # Premium: mensagem VIP no PV (inclui VIP_WHITELIST + premium do JSON)
+    # Premium: mensagem VIP no PV (so pra quem esta nas regioes das 6h)
     usuarios = carregar_usuarios()
-    # Marca VIPs da whitelist como premium no dict
+    # Inclui VIPs da whitelist
     for vip_id in VIP_WHITELIST:
         vip_str = str(vip_id)
         if vip_str in usuarios:
             usuarios[vip_str]["premium"] = True
-        elif vip_id != 0:  # Ignora ADMIN_ID=0 (nao configurado)
+        elif vip_id != 0:
             usuarios[vip_str] = {"regiao": "BR", "moeda": "BRL", "idioma": "pt", "premium": True}
     usuarios_premium = {uid: d for uid, d in usuarios.items() if d.get("premium")}
 
     for chat_id_str, user_data in usuarios_premium.items():
+        regiao = user_data.get("regiao", "BR")
+        if regiao not in regioes_6am:
+            continue  # Nao sao 6h na regiao desse usuario
+
         chat_id = int(chat_id_str)
         idioma = user_data.get("idioma", "en")
-        moeda = user_data.get("moeda", "BRL")
-        regiao = user_data.get("regiao", "BR")
 
         if idioma == "pt":
             texto_vip = (
@@ -668,11 +715,11 @@ def main():
             name="verificar_feeds",
         )
 
-        # Alerta diario as 6h (UTC-3 = 9h UTC)
-        hora_utc = (HORARIO_ALERTA_DIARIO[0] + 3) % 24
-        job_queue.run_daily(
+        # Alerta diario: roda a cada hora e envia as 6h LOCAL de cada regiao
+        job_queue.run_repeating(
             job_alerta_diario,
-            time=dt_time(hour=hora_utc, minute=HORARIO_ALERTA_DIARIO[1]),
+            interval=3600,  # a cada 1 hora
+            first=60,  # primeira checagem apos 60 segundos
             name="alerta_diario",
         )
 
@@ -884,10 +931,11 @@ def main_render():
             first=30,
             name="verificar_feeds",
         )
-        hora_utc = (HORARIO_ALERTA_DIARIO[0] + 3) % 24
-        job_queue.run_daily(
+        # Alerta diario: roda a cada hora e envia as 6h LOCAL de cada regiao
+        job_queue.run_repeating(
             job_alerta_diario,
-            time=dt_time(hour=hora_utc, minute=HORARIO_ALERTA_DIARIO[1]),
+            interval=3600,
+            first=60,
             name="alerta_diario",
         )
 
