@@ -682,7 +682,7 @@ def main():
 
     # Inicia o bot
     print("Bot rodando! Pressione Ctrl+C para parar.\n")
-    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+    app.run_polling(drop_pending_updates=False, allowed_updates=Update.ALL_TYPES)
 
 
 def main_render():
@@ -758,18 +758,29 @@ def main_render():
                                 salvar_usuarios(usuarios)
                                 logger.info(f"PREMIUM ATIVADO para @{tg_username} (ID: {chat_id_str})")
 
-                                if telegram_app_ref[0] and event_loop_ref[0]:
-                                    import asyncio
-                                    chat_id = int(chat_id_str)
-                                    idioma = usuarios[chat_id_str].get("idioma", "en")
-                                    msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYour payment was confirmed!\nYou now receive exclusive error fares and real-time alerts!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nSeu pagamento foi confirmado!\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real!"
-                                    try:
-                                        asyncio.run_coroutine_threadsafe(
-                                            telegram_app_ref[0].bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML"),
-                                            event_loop_ref[0]
-                                        )
-                                    except Exception as e:
-                                        logger.error(f"Erro ao enviar msg premium: {e}")
+                                # Envia mensagem de boas-vindas Premium via Telegram
+                                # Retry por ate 30s caso o bot ainda nao esteja pronto
+                                import asyncio
+                                import time as _wtime
+                                chat_id = int(chat_id_str)
+                                idioma = usuarios[chat_id_str].get("idioma", "en")
+                                msg = "\U0001F451 <b>Welcome to TravelAlerts Premium!</b>\n\nYour payment was confirmed!\nYou now receive exclusive error fares and real-time alerts!" if idioma == "en" else "\U0001F451 <b>Bem-vindo ao TravelAlerts Premium!</b>\n\nSeu pagamento foi confirmado!\nVoc\u00EA agora recebe error fares exclusivos e alertas em tempo real!"
+                                sent = False
+                                for _attempt in range(6):  # 6 tentativas x 5s = 30s
+                                    if telegram_app_ref[0] and event_loop_ref[0]:
+                                        try:
+                                            asyncio.run_coroutine_threadsafe(
+                                                telegram_app_ref[0].bot.send_message(chat_id=chat_id, text=msg, parse_mode="HTML"),
+                                                event_loop_ref[0]
+                                            )
+                                            sent = True
+                                            break
+                                        except Exception as e:
+                                            logger.error(f"Erro ao enviar msg premium: {e}")
+                                            break
+                                    _wtime.sleep(5)
+                                if not sent:
+                                    logger.warning(f"Nao conseguiu enviar msg premium para {chat_id} (bot nao pronto)")
                             else:
                                 logger.warning(f"@{tg_username} nao encontrado. Precisa dar /start primeiro.")
                         else:
@@ -874,12 +885,48 @@ def main_render():
 
     app.add_error_handler(error_handler_render)
 
+    # Usa drop_pending_updates=True APENAS no Render para evitar 409 Conflict
+    # ao fazer redeploy (a instancia antiga pode ter updates pendentes)
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
     import os
-    if os.environ.get("RENDER") or os.environ.get("PORT"):
-        main_render()
-    else:
-        main()
+    import sys
+
+    # Previne execucao duplicada: verifica se ja tem um bot rodando
+    # com o mesmo token (causa 409 Conflict no Telegram)
+    lock_file = Path(".bot.lock")
+    if lock_file.exists():
+        try:
+            pid = int(lock_file.read_text().strip())
+            # Verifica se o processo ainda esta vivo
+            if sys.platform == "win32":
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                handle = kernel32.OpenProcess(0x1000, False, pid)
+                if handle:
+                    kernel32.CloseHandle(handle)
+                    print(f"ERRO: Bot ja rodando (PID {pid}). Mate o processo primeiro.")
+                    sys.exit(1)
+            else:
+                os.kill(pid, 0)  # Testa se existe (nao mata)
+                print(f"ERRO: Bot ja rodando (PID {pid}). Mate o processo primeiro.")
+                sys.exit(1)
+        except (ProcessLookupError, ValueError, OSError):
+            pass  # Processo nao existe mais, ok continuar
+
+    # Grava PID para evitar duplicata
+    lock_file.write_text(str(os.getpid()))
+
+    try:
+        if os.environ.get("RENDER") or os.environ.get("PORT"):
+            main_render()
+        else:
+            main()
+    finally:
+        # Remove lock ao sair
+        try:
+            lock_file.unlink()
+        except Exception:
+            pass

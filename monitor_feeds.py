@@ -490,15 +490,20 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
             finally:
                 socket.setdefaulttimeout(old_timeout)
 
-            if feed.bozo and not feed.entries:
+            if feed.bozo and not getattr(feed, 'entries', None):
                 logger.warning(f"Erro ao parsear feed {nome}: {feed.bozo_exception}")
                 _feed_failures[nome] = _feed_failures.get(nome, 0) + 1
+                continue
+
+            entries = getattr(feed, 'entries', None) or []
+            if not entries:
+                logger.debug(f"Feed {nome}: 0 entries (vazio)")
                 continue
 
             # Feed OK — reset failure count
             _feed_failures[nome] = 0
 
-            for entry in feed.entries[:15]:
+            for entry in entries[:15]:
                 titulo = entry.get("title", "")
                 link = entry.get("link", "")
                 resumo = entry.get("summary", entry.get("description", ""))
@@ -530,6 +535,11 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
             logger.error(f"Erro ao buscar feed {nome}: {e}")
             _feed_failures[nome] = _feed_failures.get(nome, 0) + 1
             continue
+
+    # Log de performance dos feeds
+    feeds_ok = sum(1 for v in _feed_failures.values() if v == 0)
+    feeds_err = sum(1 for v in _feed_failures.values() if v > 0)
+    logger.info(f"Feeds: {feeds_ok} OK, {feeds_err} com falha | Deals brutos: {len(novos_deals)}")
 
     # Filtra deals abaixo do score minimo
     novos_deals = [d for d in novos_deals if d["relevancia"]["score"] >= SCORE_MINIMO]
