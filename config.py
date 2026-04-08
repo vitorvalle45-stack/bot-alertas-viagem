@@ -18,6 +18,7 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 VIP_WHITELIST = {
     ADMIN_ID,  # Admin sempre eh VIP
     6207337535,  # Antonio Bosco
+    6510627187,  # Alessandro
 }
 
 # RSS Feeds para monitorar (organizados por regiao)
