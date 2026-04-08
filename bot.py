@@ -251,6 +251,16 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for k in expired:
         del _buscar_cooldown[k]
 
+    # /buscar e exclusivo Premium - free recebe upsell
+    if not is_premium(chat_id):
+        idioma = get_idioma_usuario(chat_id)
+        await update.message.reply_text(
+            t("buscar_premium_only", idioma),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=False,
+        )
+        return
+
     idioma = get_idioma_usuario(chat_id)
     moeda = get_moeda_usuario(chat_id)
     regiao = get_regiao_usuario(chat_id)
@@ -259,10 +269,6 @@ async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         deals = buscar_novos_deals(regiao)
-
-        # Free users NAO veem error fares - exclusivo Premium
-        if not is_premium(chat_id):
-            deals = [d for d in deals if not d["relevancia"].get("error_fare", False)]
 
         if not deals:
             await update.message.reply_text(t("nenhum_deal", idioma))

@@ -187,6 +187,30 @@ TEXTOS = {
         "en": "Check out this cheap flights bot!",
     },
 
+    # Upsell Premium (quando free tenta /buscar)
+    "buscar_premium_only": {
+        "pt": (
+            "\U0001F451 <b>Comando exclusivo para membros Premium!</b>\n\n"
+            "\U0001F6A8 Membros Premium recebem:\n"
+            "\u2022 \U0001F525 Error fares exclusivos em tempo real\n"
+            "\u2022 \u2708\uFE0F Deals personalizados no PV\n"
+            "\u2022 \U0001F4B0 Alertas automaticos 24/7\n"
+            "\u2022 \u26A1 Precos ate 90% abaixo do normal\n\n"
+            "\U0001F4A1 <b>Um unico error fare ja paga 35 anos de Premium!</b>\n\n"
+            "\U0001F449 <a href=\"https://buy.stripe.com/28E3cp7GV5WQctA7kf6J200\">QUERO SER PREMIUM AGORA</a>"
+        ),
+        "en": (
+            "\U0001F451 <b>This command is Premium-only!</b>\n\n"
+            "\U0001F6A8 Premium members get:\n"
+            "\u2022 \U0001F525 Exclusive real-time error fares\n"
+            "\u2022 \u2708\uFE0F Personalized deals in DM\n"
+            "\u2022 \U0001F4B0 24/7 automatic alerts\n"
+            "\u2022 \u26A1 Prices up to 90% below normal\n\n"
+            "\U0001F4A1 <b>One single error fare pays for 35 years of Premium!</b>\n\n"
+            "\U0001F449 <a href=\"https://buy.stripe.com/28E3cp7GV5WQctA7kf6J200\">BECOME PREMIUM NOW</a>"
+        ),
+    },
+
     # Admin
     "admin_restrito": {
         "pt": "\u274C Comando restrito ao admin.",
