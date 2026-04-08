@@ -17,7 +17,7 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 # Adicione o Telegram ID (numero) de cada usuario VIP
 VIP_WHITELIST = {
     ADMIN_ID,  # Admin sempre eh VIP
-    # Antonio Bosco: adicionar ID aqui quando disponivel
+    6207337535,  # Antonio Bosco
 }
 
 # RSS Feeds para monitorar (organizados por regiao)
