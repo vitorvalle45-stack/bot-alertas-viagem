@@ -666,7 +666,14 @@ def main():
 
     async def error_handler(update, context):
         import time as _time
+        error_msg = str(context.error)
         error_key = str(type(context.error).__name__)
+
+        # Ignora 409 Conflict - e temporario durante redeploy, se resolve sozinho
+        if "Conflict" in error_msg or "terminated by other" in error_msg:
+            logger.warning(f"409 Conflict (instancia duplicada, ignorando): {error_msg[:100]}")
+            return
+
         now = _time.time()
         last = _error_cache.get(error_key, 0)
         logger.error(f"Erro no bot: {context.error}")
@@ -676,7 +683,7 @@ def main():
             try:
                 await context.bot.send_message(
                     chat_id=ADMIN_ID,
-                    text=f"\u26A0\uFE0F <b>Erro no bot:</b>\n<code>{str(context.error)[:500]}</code>",
+                    text=f"\u26A0\uFE0F <b>Erro no bot:</b>\n<code>{error_msg[:500]}</code>",
                     parse_mode=ParseMode.HTML,
                 )
             except Exception:
@@ -872,7 +879,14 @@ def main_render():
 
     async def error_handler_render(update, context):
         import time as _time
+        error_msg = str(context.error)
         error_key = str(type(context.error).__name__)
+
+        # Ignora 409 Conflict - e temporario durante redeploy, se resolve sozinho
+        if "Conflict" in error_msg or "terminated by other" in error_msg:
+            logger.warning(f"409 Conflict (instancia duplicada, ignorando): {error_msg[:100]}")
+            return
+
         now = _time.time()
         last = _error_cache_r.get(error_key, 0)
         logger.error(f"Erro no bot: {context.error}")
