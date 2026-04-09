@@ -37,10 +37,12 @@ RSS_FEEDS = [
     # === INTERNACIONAL / GLOBAL ===
     # Secret Flying - REMOVIDO (403, retorna HTML em vez de RSS)
     {"nome": "Fly4Free", "url": "https://www.fly4free.com/feed/", "tipo": "internacional", "regiao": "ALL"},
+    {"nome": "Traveling For Miles Deals", "url": "https://travelingformiles.com/category/deals/feed/", "tipo": "internacional", "regiao": "ALL"},
     {"nome": "FareDealAlert", "url": "https://faredealalert.com/feed/", "tipo": "internacional", "regiao": "US"},
     {"nome": "The Flight Deal", "url": "https://www.theflightdeal.com/feed/", "tipo": "internacional", "regiao": "US"},
     # === UK / EUROPA ===
     {"nome": "HolidayPirates", "url": "https://www.holidaypirates.com/feed", "tipo": "internacional", "regiao": "UK"},
+    {"nome": "Head for Points", "url": "https://www.headforpoints.com/feed/", "tipo": "internacional", "regiao": "UK"},
     {"nome": "TravelFree", "url": "https://travelfree.info/feed/", "tipo": "internacional", "regiao": "EU"},
     {"nome": "Travel-Dealz", "url": "https://travel-dealz.com/feed/", "tipo": "internacional", "regiao": "EU"},
     # === EUA ===
@@ -51,8 +53,10 @@ RSS_FEEDS = [
     {"nome": "Travel Off Path", "url": "https://www.traveloffpath.com/feed/", "tipo": "internacional", "regiao": "US"},
     # === AUSTRALIA ===
     {"nome": "I Know The Pilot", "url": "https://iknowthepilot.com.au/feed", "tipo": "internacional", "regiao": "AU"},
+    {"nome": "OzBargain Flights", "url": "https://www.ozbargain.com.au/tag/flights/feed", "tipo": "internacional", "regiao": "AU"},
     # === CANADA ===
     {"nome": "Next Departure", "url": "https://nextdeparture.ca/feed/", "tipo": "internacional", "regiao": "CA"},
+    {"nome": "Prince of Travel", "url": "https://princeoftravel.com/feed/", "tipo": "internacional", "regiao": "CA"},
     # === MEXICO / LATAM ===
     # Guru de Viaje - REMOVIDO (retorna HTML/Next.js, sem RSS)
     # Promodescuentos Vuelos - REMOVIDO (403 Forbidden)
@@ -60,14 +64,18 @@ RSS_FEEDS = [
     # Google News Vuelos MX - REMOVIDO (traz noticias genericas, nao deals)
     # === ALEMANHA ===
     {"nome": "Urlaubspiraten", "url": "https://www.urlaubspiraten.de/feed", "tipo": "internacional", "regiao": "EU"},
+    {"nome": "ReiseDeals Flights", "url": "https://reisedeals.com/category/fluege/feed/", "tipo": "internacional", "regiao": "EU"},
     # === ITALIA ===
     {"nome": "Piratinviaggio", "url": "https://www.piratinviaggio.it/feed", "tipo": "internacional", "regiao": "EU"},
+    # === FRANCA ===
+    {"nome": "VoyagesPirates FR", "url": "https://www.voyagespirates.fr/feed/", "tipo": "internacional", "regiao": "EU"},
     # === ESPANHA ===
     {"nome": "ViajerosPiratas", "url": "https://www.viajerospiratas.es/feed", "tipo": "internacional", "regiao": "EU"},
     # === HOLANDA ===
     {"nome": "TicketSpy", "url": "https://ticketspy.nl/feed/", "tipo": "internacional", "regiao": "EU"},
     # === ASIA ===
     {"nome": "Traicy", "url": "https://en.traicy.com/feed", "tipo": "internacional", "regiao": "JP"},
+    {"nome": "Live From A Lounge Deals", "url": "https://livefromalounge.com/category/deals/feed/", "tipo": "internacional", "regiao": "JP"},
     # === ERROR FARES EXTRA ===
     # Google News Fuel Dump - REMOVIDO (traz processos judiciais e acidentes de aviao)
     {"nome": "FlyerTalk Deals", "url": "https://www.flyertalk.com/forum/external.php?type=RSS2&forumids=372", "tipo": "error_fare", "regiao": "ALL"},
