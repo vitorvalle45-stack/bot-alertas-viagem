@@ -29,12 +29,11 @@ RSS_FEEDS = [
     # Melhores Destinos Promocoes - REMOVIDO (404, URL nao existe mais)
     # Voopter Blog - REMOVIDO (404, feed removido)
     {"nome": "MaxMilhas Blog", "url": "https://www.maxmilhas.com.br/blog/feed", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Google News Passagens BR", "url": "https://news.google.com/rss/search?q=passagem+aerea+promocao+OR+barata+OR+desconto&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "brasil", "regiao": "BR"},
-    {"nome": "Google News Voos Baratos BR", "url": "https://news.google.com/rss/search?q=voo+barato+OR+%22passagem+barata%22+OR+%22milhas+aereas%22&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "brasil", "regiao": "BR"},
+    # Google News BR - REMOVIDO (traz noticias genericas, guerra, politica em vez de deals)
     # === ERROR FARES (PREMIUM EXCLUSIVO) ===
     # Secret Flying Error Fares - REMOVIDO (403, retorna HTML em vez de RSS)
-    {"nome": "Google News Error Fares", "url": "https://news.google.com/rss/search?q=%22error+fare%22+OR+%22mistake+fare%22+OR+%22glitch+fare%22+OR+%22fuel+dump%22&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
-    {"nome": "Google News Error Fares PT", "url": "https://news.google.com/rss/search?q=%22erro+tarifa%22+OR+%22passagem+erro%22+OR+%22bug+passagem%22+OR+%22glitch+aereo%22&hl=pt-BR&gl=BR&ceid=BR:pt-419", "tipo": "error_fare", "regiao": "BR"},
+    # Google News Error Fares - REMOVIDO (traz processos judiciais, acidentes, nao deals)
+    # Google News Error Fares PT - REMOVIDO (traz noticias de lixo urbano, nao error fares)
     # === INTERNACIONAL / GLOBAL ===
     # Secret Flying - REMOVIDO (403, retorna HTML em vez de RSS)
     {"nome": "Fly4Free", "url": "https://www.fly4free.com/feed/", "tipo": "internacional", "regiao": "ALL"},
@@ -58,7 +57,7 @@ RSS_FEEDS = [
     # Guru de Viaje - REMOVIDO (retorna HTML/Next.js, sem RSS)
     # Promodescuentos Vuelos - REMOVIDO (403 Forbidden)
     {"nome": "VuelaX", "url": "https://www.vuelax.com/feed/", "tipo": "internacional", "regiao": "MX"},
-    {"nome": "Google News Vuelos MX", "url": "https://news.google.com/rss/search?q=vuelo+barato+OR+%22oferta+vuelo%22+OR+%22error+fare%22&hl=es-419&gl=MX&ceid=MX:es-419", "tipo": "internacional", "regiao": "MX"},
+    # Google News Vuelos MX - REMOVIDO (traz noticias genericas, nao deals)
     # === ALEMANHA ===
     {"nome": "Urlaubspiraten", "url": "https://www.urlaubspiraten.de/feed", "tipo": "internacional", "regiao": "EU"},
     # === ITALIA ===
@@ -70,7 +69,7 @@ RSS_FEEDS = [
     # === ASIA ===
     {"nome": "Traicy", "url": "https://en.traicy.com/feed", "tipo": "internacional", "regiao": "JP"},
     # === ERROR FARES EXTRA ===
-    {"nome": "Google News Fuel Dump", "url": "https://news.google.com/rss/search?q=%22fuel+dump%22+airline+OR+flight&hl=en-US&gl=US&ceid=US:en", "tipo": "error_fare", "regiao": "ALL"},
+    # Google News Fuel Dump - REMOVIDO (traz processos judiciais e acidentes de aviao)
     {"nome": "FlyerTalk Deals", "url": "https://www.flyertalk.com/forum/external.php?type=RSS2&forumids=372", "tipo": "error_fare", "regiao": "ALL"},
 ]
 

@@ -435,6 +435,60 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
     return "\n".join(linhas)
 
 
+# ==================== FILTRO DE CONTEUDO ====================
+# Bloqueia noticias sobre guerra, desastres, politica, acidentes etc.
+# Apenas deals de passagens e viagem devem passar.
+
+_PALAVRAS_BLOQUEADAS = [
+    # Guerra / Conflitos
+    "war ", "guerra", "conflict", "conflito", "military", "militar",
+    "bombing", "bombardeio", "missile", "missil", "invasion", "invasao",
+    "palestine", "palestina", "israel", "hamas", "hezbollah",
+    "ukraine", "ucrania", "russia", "nato", "otan",
+    "terrorism", "terrorismo", "terrorist", "terrorista",
+    "genocide", "genocidio", "massacre", "refugee", "refugiado",
+    "sanctions", "sancoes", "embargo",
+    # Desastres / Acidentes
+    "crash", "crashed", "acidente", "disaster", "desastre",
+    "earthquake", "terremoto", "tsunami", "hurricane", "furacao",
+    "flood", "inundacao", "wildfire", "incendio",
+    "emergency landing", "pouso de emergencia", "fuel dump",
+    "explosion", "explosao", "derailment",
+    # Morte / Violencia
+    "death", "morte", "killed", "morto", "murder", "assassinato",
+    "shooting", "tiroteio", "stabbing", "victim", "vitima",
+    "suicide", "suicidio", "hostage", "refem",
+    # Politica / Governo
+    "election", "eleicao", "president", "presidente", "congress",
+    "parliament", "parlamento", "legislation", "legislacao",
+    "impeachment", "corruption", "corrupcao", "scandal", "escandalo",
+    "protest", "protesto", "riot", "motim",
+    # Doencas / Pandemias
+    "pandemic", "pandemia", "outbreak", "surto", "epidemic", "epidemia",
+    "quarantine", "quarentena", "lockdown",
+    # Juridico / Processos
+    "lawsuit", "processo judicial", "sued", "settlement", "indenizacao",
+    "court ruling", "tribunal", "sentenced", "condenado",
+    # Falencia / Crise
+    "bankruptcy", "falencia", "layoffs", "demissoes", "recession",
+    "recessao", "crisis", "crise economica",
+    # Conteudo adulto / Inapropriado
+    "scam", "golpe", "fraud", "fraude", "phishing",
+    # Lixo / Nao relacionado a viagem
+    "tarifa de lixo", "tarifa de agua", "conta de luz",
+    "boleto", "iptu", "imposto",
+]
+
+
+def _conteudo_bloqueado(titulo: str, resumo: str) -> bool:
+    """Retorna True se o conteudo contem palavras bloqueadas (nao eh deal de viagem)."""
+    texto = f"{titulo} {resumo}".lower()
+    for palavra in _PALAVRAS_BLOQUEADAS:
+        if palavra in texto:
+            return True
+    return False
+
+
 # Track feed failures for health monitoring
 _feed_failures = {}
 _last_health_alert = 0  # timestamp do ultimo alerta de saude enviado
@@ -511,6 +565,12 @@ def buscar_novos_deals(regiao_usuario: str = "BR") -> list[dict]:
 
                 # Pula se ja foi enviado
                 if deal_id in deals_enviados:
+                    continue
+
+                # FILTRO DE CONTEUDO: bloqueia noticias negativas/irrelevantes
+                # Apenas deals de viagem devem passar - nada de guerra, politica, desastres
+                if _conteudo_bloqueado(titulo, resumo):
+                    logger.debug(f"Bloqueado por filtro de conteudo: {titulo[:60]}")
                     continue
 
                 # Calcula relevancia com a regiao do usuario
