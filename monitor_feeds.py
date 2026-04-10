@@ -261,6 +261,28 @@ def converter_preco(preco_str: str, moeda_destino: str = "BRL") -> str:
     return texto
 
 
+def estimar_preco_normal(preco_deal: str, moeda: str = "BRL") -> str:
+    """Estima o preco normal de uma rota baseado no preco do error fare.
+    Error fares tipicamente sao 60-80% abaixo do normal (3-4x mais barato)."""
+    valor_usd = extrair_valor_usd(preco_deal)
+    if valor_usd <= 0:
+        return ""
+    # Estima preco normal como ~3.5x o preco do error fare
+    valor_normal_usd = valor_usd * 3.5
+    taxa = COTACOES_DE_USD.get(moeda, 5.50)
+    simbolo = SIMBOLOS_MOEDA.get(moeda, moeda)
+    valor_normal = valor_normal_usd * taxa
+
+    if moeda in ("JPY", "KRW"):
+        texto = f"{simbolo} {valor_normal:,.0f}"
+    else:
+        texto = f"{simbolo} {valor_normal:,.2f}"
+
+    if moeda in ("BRL", "EUR"):
+        return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+    return texto
+
+
 def extrair_preco(texto: str) -> str:
     """Tenta extrair preco do titulo/resumo do deal (retorna string original)."""
     import re
@@ -405,18 +427,11 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
 
     if rel["error_fare"]:
         # === MENSAGEM ESCANDALOSA PARA ERROR FARE / PRICE GLITCH ===
-        if idioma == "pt":
-            linhas.append("\U0001F6A8\U0001F6A8\U0001F6A8 <b>ERRO DE PRECO DETECTADO!</b> \U0001F6A8\U0001F6A8\U0001F6A8")
-            linhas.append("")
-            linhas.append("\u26A0\uFE0F\u26A0\uFE0F <b>PRICE GLITCH! A CIA AEREA ERROU O PRECO!</b>")
-            linhas.append("\U0001F4A5 <i>Esse erro pode ser corrigido A QUALQUER MOMENTO!</i>")
-            linhas.append("\u23F0 <i>CORRA! Pode desaparecer em minutos!</i>")
-        else:
-            linhas.append("\U0001F6A8\U0001F6A8\U0001F6A8 <b>PRICE GLITCH DETECTED!</b> \U0001F6A8\U0001F6A8\U0001F6A8")
-            linhas.append("")
-            linhas.append("\u26A0\uFE0F\u26A0\uFE0F <b>AIRLINE PRICING ERROR!</b>")
-            linhas.append("\U0001F4A5 <i>This glitch can be fixed ANY SECOND!</i>")
-            linhas.append("\u23F0 <i>HURRY! May disappear in minutes!</i>")
+        linhas.append(f"\U0001F6A8\U0001F6A8\U0001F6A8 <b>{t('glitch_titulo', idioma)}</b> \U0001F6A8\U0001F6A8\U0001F6A8")
+        linhas.append("")
+        linhas.append(f"\u26A0\uFE0F\u26A0\uFE0F <b>{t('glitch_subtitulo', idioma)}</b>")
+        linhas.append(f"\U0001F4A5 <i>{t('glitch_urgencia1', idioma)}</i>")
+        linhas.append(f"\u23F0 <i>{t('glitch_urgencia2', idioma)}</i>")
 
         linhas.append("")
 
@@ -427,7 +442,10 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
 
         if deal["preco"]:
             preco_convertido = converter_preco(deal["preco"], moeda)
-            linhas.append(f"\U0001F4B0\U0001F4B0 <b>{preco_convertido}</b> \U0001F4B0\U0001F4B0")
+            preco_normal = estimar_preco_normal(deal["preco"], moeda)
+            if preco_normal:
+                linhas.append(f"\U0001F4B8 <s>{t('glitch_normalmente', idioma)}: {preco_normal}</s>")
+            linhas.append(f"\U0001F4B0\U0001F4B0 <b>{t('glitch_agora', idioma)}: {preco_convertido}</b> \U0001F4B0\U0001F4B0")
 
         if deal["resumo"]:
             linhas.append(f"\n\U0001F4CB {deal['resumo']}")
@@ -435,12 +453,8 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
         linhas.append(f"\n\U0001F4F0 {t('fonte', idioma)}: {deal['fonte']}")
         linhas.append(f'\n\U0001F449\U0001F449 <a href="{deal["link"]}"><b>{t("ver_deal", idioma).upper()}</b></a> \U0001F449\U0001F449')
 
-        if idioma == "pt":
-            linhas.append("\n\U0001F6A8 <b>RESERVE PRIMEIRO, PLANEJE DEPOIS!</b>")
-            linhas.append("\U0001F6A8 <i>85% das cias aereas HONRAM erros de preco!</i>")
-        else:
-            linhas.append("\n\U0001F6A8 <b>BOOK FIRST, PLAN LATER!</b>")
-            linhas.append("\U0001F6A8 <i>85% of airlines HONOR pricing errors!</i>")
+        linhas.append(f"\n\U0001F6A8 <b>{t('glitch_reserve', idioma)}</b>")
+        linhas.append(f"\U0001F6A8 <i>{t('glitch_honram', idioma)}</i>")
 
         linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
         linhas.append(f"\U0001F514 {t('ativar_notif', idioma)}")

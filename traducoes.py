@@ -137,22 +137,146 @@ TEXTOS = {
     "alerta_passagem": {
         "pt": "ALERTA DE PASSAGEM",
         "en": "FLIGHT DEAL ALERT",
+        "es": "ALERTA DE VUELO",
+        "fr": "ALERTE VOL",
+        "de": "FLUG-DEAL ALARM",
+        "it": "AVVISO VOLO",
+        "ja": "\u2708\uFE0F \u822A\u7A7A\u5238\u30C7\u30A3\u30FC\u30EB\u901A\u77E5",
+        "ko": "\u2708\uFE0F \uD56D\uACF5\uAD8C \uB51C \uC54C\uB9BC",
+        "nl": "VLUCHT DEAL ALERT",
     },
     "error_fare": {
         "pt": "POSSIVEL ERROR FARE!",
         "en": "POSSIBLE ERROR FARE!",
+        "es": "POSIBLE ERROR DE PRECIO!",
+        "fr": "POSSIBLE ERREUR DE PRIX!",
+        "de": "MOGLICHER PREISFEHLER!",
+        "it": "POSSIBILE ERRORE DI PREZZO!",
+        "ja": "\u4FA1\u683C\u30A8\u30E9\u30FC\u306E\u53EF\u80FD\u6027!",
+        "ko": "\uAC00\uACA9 \uC624\uB958 \uBC1C\uACAC!",
+        "nl": "MOGELIJKE PRIJSFOUT!",
     },
     "ver_deal": {
         "pt": "VER DEAL COMPLETO",
         "en": "VIEW FULL DEAL",
+        "es": "VER OFERTA COMPLETA",
+        "fr": "VOIR L'OFFRE",
+        "de": "DEAL ANSEHEN",
+        "it": "VEDI OFFERTA",
+        "ja": "\u30C7\u30A3\u30FC\u30EB\u3092\u898B\u308B",
+        "ko": "\uB51C \uBCF4\uAE30",
+        "nl": "DEAL BEKIJKEN",
     },
     "ativar_notif": {
         "pt": "Ative as notificacoes para nao perder nenhum alerta!",
         "en": "Turn on notifications so you never miss a deal!",
+        "es": "Activa las notificaciones para no perderte ninguna oferta!",
+        "fr": "Activez les notifications pour ne rater aucune offre!",
+        "de": "Benachrichtigungen aktivieren, um kein Angebot zu verpassen!",
+        "it": "Attiva le notifiche per non perdere nessuna offerta!",
+        "ja": "\u901A\u77E5\u3092\u30AA\u30F3\u306B\u3057\u3066\u304F\u3060\u3055\u3044\uFF01",
+        "ko": "\uC54C\uB9BC\uC744 \uCF1C\uC138\uC694!",
+        "nl": "Zet meldingen aan zodat je geen deal mist!",
     },
     "fonte": {
         "pt": "Fonte",
         "en": "Source",
+        "es": "Fuente",
+        "fr": "Source",
+        "de": "Quelle",
+        "it": "Fonte",
+        "ja": "\u30BD\u30FC\u30B9",
+        "ko": "\uCD9C\uCC98",
+        "nl": "Bron",
+    },
+    # Error fare - mensagens escandalosas
+    "glitch_titulo": {
+        "pt": "ERRO DE PRECO DETECTADO!",
+        "en": "PRICE GLITCH DETECTED!",
+        "es": "ERROR DE PRECIO DETECTADO!",
+        "fr": "ERREUR DE PRIX DETECTEE!",
+        "de": "PREISFEHLER ENTDECKT!",
+        "it": "ERRORE DI PREZZO RILEVATO!",
+        "ja": "\u4FA1\u683C\u30A8\u30E9\u30FC\u767A\u898B\uFF01",
+        "ko": "\uAC00\uACA9 \uC624\uB958 \uBC1C\uACAC!",
+        "nl": "PRIJSFOUT ONTDEKT!",
+    },
+    "glitch_subtitulo": {
+        "pt": "PRICE GLITCH! A CIA AEREA ERROU O PRECO!",
+        "en": "AIRLINE PRICING ERROR!",
+        "es": "LA AEROLINEA COMETIO UN ERROR DE PRECIO!",
+        "fr": "LA COMPAGNIE AERIENNE A FAIT UNE ERREUR DE PRIX!",
+        "de": "DIE AIRLINE HAT EINEN PREISFEHLER GEMACHT!",
+        "it": "LA COMPAGNIA AEREA HA SBAGLIATO IL PREZZO!",
+        "ja": "\u822A\u7A7A\u4F1A\u793E\u304C\u4FA1\u683C\u3092\u9593\u9055\u3048\u305F\uFF01",
+        "ko": "\uD56D\uACF5\uC0AC \uAC00\uACA9 \uC624\uB958!",
+        "nl": "DE LUCHTVAARTMAATSCHAPPIJ HEEFT EEN PRIJSFOUT GEMAAKT!",
+    },
+    "glitch_urgencia1": {
+        "pt": "Esse erro pode ser corrigido A QUALQUER MOMENTO!",
+        "en": "This glitch can be fixed ANY SECOND!",
+        "es": "Este error puede corregirse EN CUALQUIER MOMENTO!",
+        "fr": "Cette erreur peut etre corrigee A TOUT MOMENT!",
+        "de": "Dieser Fehler kann JEDE SEKUNDE behoben werden!",
+        "it": "Questo errore puo essere corretto IN QUALSIASI MOMENTO!",
+        "ja": "\u3053\u306E\u30A8\u30E9\u30FC\u306F\u3044\u3064\u3067\u3082\u4FEE\u6B63\u3055\u308C\u308B\u53EF\u80FD\u6027\u304C!",
+        "ko": "\uC774 \uC624\uB958\uB294 \uC5B8\uC81C\uB4E0 \uC218\uC815\uB420 \uC218 \uC788\uC2B5\uB2C8\uB2E4!",
+        "nl": "Deze fout kan ELK MOMENT worden hersteld!",
+    },
+    "glitch_urgencia2": {
+        "pt": "CORRA! Pode desaparecer em minutos!",
+        "en": "HURRY! May disappear in minutes!",
+        "es": "CORRE! Puede desaparecer en minutos!",
+        "fr": "VITE! Peut disparaitre en minutes!",
+        "de": "SCHNELL! Kann in Minuten verschwinden!",
+        "it": "CORRI! Puo sparire in pochi minuti!",
+        "ja": "\u6025\u3044\u3067\uFF01\u6570\u5206\u3067\u6D88\u3048\u308B\u304B\u3082!",
+        "ko": "\uC11C\uB450\uB974\uC138\uC694! \uBA87 \uBD84 \uC548\uC5D0 \uC0AC\uB77C\uC9C8 \uC218 \uC788\uC2B5\uB2C8\uB2E4!",
+        "nl": "SNEL! Kan binnen minuten verdwijnen!",
+    },
+    "glitch_normalmente": {
+        "pt": "Normalmente",
+        "en": "Normally",
+        "es": "Normalmente",
+        "fr": "Normalement",
+        "de": "Normalerweise",
+        "it": "Normalmente",
+        "ja": "\u901A\u5E38",
+        "ko": "\uC77C\uBC18\uC801\uC73C\uB85C",
+        "nl": "Normaal",
+    },
+    "glitch_agora": {
+        "pt": "AGORA",
+        "en": "NOW",
+        "es": "AHORA",
+        "fr": "MAINTENANT",
+        "de": "JETZT",
+        "it": "ORA",
+        "ja": "\u4ECA",
+        "ko": "\uC9C0\uAE08",
+        "nl": "NU",
+    },
+    "glitch_reserve": {
+        "pt": "RESERVE PRIMEIRO, PLANEJE DEPOIS!",
+        "en": "BOOK FIRST, PLAN LATER!",
+        "es": "RESERVA PRIMERO, PLANIFICA DESPUES!",
+        "fr": "RESERVEZ D'ABORD, PLANIFIEZ APRES!",
+        "de": "ERST BUCHEN, DANN PLANEN!",
+        "it": "PRENOTA PRIMA, PIANIFICA DOPO!",
+        "ja": "\u5148\u306B\u4E88\u7D04\u3001\u8A08\u753B\u306F\u5F8C\u3067\uFF01",
+        "ko": "\uBA3C\uC800 \uC608\uC57D, \uACC4\uD68D\uC740 \uB098\uC911\uC5D0!",
+        "nl": "BOEK EERST, PLAN LATER!",
+    },
+    "glitch_honram": {
+        "pt": "85% das cias aereas HONRAM erros de preco!",
+        "en": "85% of airlines HONOR pricing errors!",
+        "es": "85% de las aerolineas RESPETAN los errores de precio!",
+        "fr": "85% des compagnies HONORENT les erreurs de prix!",
+        "de": "85% der Airlines AKZEPTIEREN Preisfehler!",
+        "it": "85% delle compagnie ONORANO gli errori di prezzo!",
+        "ja": "85%\u306E\u822A\u7A7A\u4F1A\u793E\u304C\u4FA1\u683C\u30A8\u30E9\u30FC\u3092\u5C0A\u91CD!",
+        "ko": "85%\uC758 \uD56D\uACF5\uC0AC\uAC00 \uAC00\uACA9 \uC624\uB958\uB97C \uC874\uC911\uD569\uB2C8\uB2E4!",
+        "nl": "85% van de airlines RESPECTEERT prijsfouten!",
     },
 
     # Alerta diario
@@ -230,27 +354,56 @@ TEXTOS = {
     },
 }
 
-# Regioes que usam portugues
-REGIOES_PT = {"BR"}
+# Mapeamento de regiao para idioma
+REGIAO_IDIOMA = {
+    "BR": "pt",
+    "US": "en",
+    "UK": "en",
+    "AU": "en",
+    "CA": "en",
+    "EU": "en",  # Europa usa ingles como padrao (multi-idioma)
+    "CH": "en",
+    "AE": "en",
+    "JP": "ja",
+    "KR": "ko",
+    "DK": "en",  # Nordicos entendem ingles
+    "SE": "en",
+    "NO": "en",
+    "MX": "es",
+}
 
-# Codigos de idioma do Telegram que mapeiam pra portugues
-LANG_CODES_PT = {"pt", "pt-br", "pt_br"}
+# Codigos de idioma do Telegram para idioma do bot
+LANG_CODE_MAP = {
+    "pt": "pt", "pt-br": "pt", "pt_br": "pt",
+    "es": "es", "es-419": "es", "es_mx": "es", "es_es": "es",
+    "fr": "fr", "fr-fr": "fr", "fr_fr": "fr",
+    "de": "de", "de-de": "de", "de_de": "de", "de-ch": "de",
+    "it": "it", "it-it": "it", "it_it": "it",
+    "ja": "ja", "ja-jp": "ja",
+    "ko": "ko", "ko-kr": "ko",
+    "nl": "nl", "nl-nl": "nl",
+}
 
 
 def detectar_idioma(language_code: str = "", regiao: str = "") -> str:
     """
     Detecta o idioma do usuario baseado em:
-    1. Regiao selecionada (BR = pt)
-    2. language_code do Telegram (pt, pt-br = pt)
+    1. Regiao selecionada (BR=pt, MX=es, JP=ja, KR=ko)
+    2. language_code do Telegram
     3. Fallback: en (ingles)
     """
-    if regiao in REGIOES_PT:
-        return "pt"
+    # Regiao define idioma primario
+    if regiao in REGIAO_IDIOMA:
+        idioma_regiao = REGIAO_IDIOMA[regiao]
+        if idioma_regiao != "en":
+            return idioma_regiao
 
+    # Telegram language_code pode refinar
     if language_code:
         lang = language_code.lower().replace("-", "_")
-        if lang in LANG_CODES_PT or lang.startswith("pt"):
-            return "pt"
+        for code, idioma in LANG_CODE_MAP.items():
+            if lang == code.replace("-", "_") or lang.startswith(code.split("-")[0]):
+                return idioma
 
     return "en"
 
