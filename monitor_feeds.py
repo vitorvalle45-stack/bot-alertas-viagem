@@ -402,35 +402,74 @@ def formatar_mensagem_com_moeda(deal: dict, moeda: str = "BRL", idioma: str = "p
         emoji_tipo = "\u2708\uFE0F"
 
     linhas = []
-    linhas.append(f"{emoji_tipo} <b>{t('alerta_passagem', idioma)}</b>")
 
     if rel["error_fare"]:
-        linhas.append(f"\U0001F6A8\U0001F6A8\U0001F6A8 <b>{t('error_fare', idioma)}</b>")
-        urgencia = "\u26A0\uFE0F <i>Reserve AGORA - pode desaparecer em horas!</i>" if idioma == "pt" else "\u26A0\uFE0F <i>Book NOW - may disappear in hours!</i>"
-        linhas.append(urgencia)
+        # === MENSAGEM ESCANDALOSA PARA ERROR FARE / PRICE GLITCH ===
+        if idioma == "pt":
+            linhas.append("\U0001F6A8\U0001F6A8\U0001F6A8 <b>ERRO DE PRECO DETECTADO!</b> \U0001F6A8\U0001F6A8\U0001F6A8")
+            linhas.append("")
+            linhas.append("\u26A0\uFE0F\u26A0\uFE0F <b>PRICE GLITCH! A CIA AEREA ERROU O PRECO!</b>")
+            linhas.append("\U0001F4A5 <i>Esse erro pode ser corrigido A QUALQUER MOMENTO!</i>")
+            linhas.append("\u23F0 <i>CORRA! Pode desaparecer em minutos!</i>")
+        else:
+            linhas.append("\U0001F6A8\U0001F6A8\U0001F6A8 <b>PRICE GLITCH DETECTED!</b> \U0001F6A8\U0001F6A8\U0001F6A8")
+            linhas.append("")
+            linhas.append("\u26A0\uFE0F\u26A0\uFE0F <b>AIRLINE PRICING ERROR!</b>")
+            linhas.append("\U0001F4A5 <i>This glitch can be fixed ANY SECOND!</i>")
+            linhas.append("\u23F0 <i>HURRY! May disappear in minutes!</i>")
 
-    linhas.append("")
+        linhas.append("")
 
-    if deal["origem"] and deal["destino"]:
-        linhas.append(f"\u2708\uFE0F <b>{deal['origem']} \u2192 {deal['destino']}</b>")
+        if deal["origem"] and deal["destino"]:
+            linhas.append(f"\u2708\uFE0F <b>{deal['origem']} \u2192 {deal['destino']}</b>")
+        else:
+            linhas.append(f"\u2708\uFE0F <b>{deal['titulo']}</b>")
+
+        if deal["preco"]:
+            preco_convertido = converter_preco(deal["preco"], moeda)
+            linhas.append(f"\U0001F4B0\U0001F4B0 <b>{preco_convertido}</b> \U0001F4B0\U0001F4B0")
+
+        if deal["resumo"]:
+            linhas.append(f"\n\U0001F4CB {deal['resumo']}")
+
+        linhas.append(f"\n\U0001F4F0 {t('fonte', idioma)}: {deal['fonte']}")
+        linhas.append(f'\n\U0001F449\U0001F449 <a href="{deal["link"]}"><b>{t("ver_deal", idioma).upper()}</b></a> \U0001F449\U0001F449')
+
+        if idioma == "pt":
+            linhas.append("\n\U0001F6A8 <b>RESERVE PRIMEIRO, PLANEJE DEPOIS!</b>")
+            linhas.append("\U0001F6A8 <i>85% das cias aereas HONRAM erros de preco!</i>")
+        else:
+            linhas.append("\n\U0001F6A8 <b>BOOK FIRST, PLAN LATER!</b>")
+            linhas.append("\U0001F6A8 <i>85% of airlines HONOR pricing errors!</i>")
+
+        linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
+        linhas.append(f"\U0001F514 {t('ativar_notif', idioma)}")
+
     else:
-        linhas.append(f"\u2708\uFE0F <b>{deal['titulo']}</b>")
+        # === MENSAGEM NORMAL PARA DEALS COMUNS ===
+        linhas.append(f"{emoji_tipo} <b>{t('alerta_passagem', idioma)}</b>")
+        linhas.append("")
 
-    if deal["preco"]:
-        preco_convertido = converter_preco(deal["preco"], moeda)
-        linhas.append(f"\U0001F4B0 <b>{preco_convertido}</b>")
+        if deal["origem"] and deal["destino"]:
+            linhas.append(f"\u2708\uFE0F <b>{deal['origem']} \u2192 {deal['destino']}</b>")
+        else:
+            linhas.append(f"\u2708\uFE0F <b>{deal['titulo']}</b>")
 
-    if deal["resumo"]:
-        linhas.append(f"\n\U0001F4CB {deal['resumo']}")
+        if deal["preco"]:
+            preco_convertido = converter_preco(deal["preco"], moeda)
+            linhas.append(f"\U0001F4B0 <b>{preco_convertido}</b>")
 
-    if rel["tags"]:
-        tags_str = " | ".join(rel["tags"])
-        linhas.append(f"\n\U0001F3F7\uFE0F {tags_str}")
+        if deal["resumo"]:
+            linhas.append(f"\n\U0001F4CB {deal['resumo']}")
 
-    linhas.append(f"\n\U0001F4F0 {t('fonte', idioma)}: {deal['fonte']}")
-    linhas.append(f'\n\U0001F449 <a href="{deal["link"]}">{t("ver_deal", idioma)}</a>')
-    linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
-    linhas.append(f"\U0001F514 {t('ativar_notif', idioma)}")
+        if rel["tags"]:
+            tags_str = " | ".join(rel["tags"])
+            linhas.append(f"\n\U0001F3F7\uFE0F {tags_str}")
+
+        linhas.append(f"\n\U0001F4F0 {t('fonte', idioma)}: {deal['fonte']}")
+        linhas.append(f'\n\U0001F449 <a href="{deal["link"]}">{t("ver_deal", idioma)}</a>')
+        linhas.append("\n\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014")
+        linhas.append(f"\U0001F514 {t('ativar_notif', idioma)}")
 
     return "\n".join(linhas)
 
