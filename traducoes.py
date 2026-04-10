@@ -357,31 +357,23 @@ TEXTOS = {
 # Mapeamento de regiao para idioma
 REGIAO_IDIOMA = {
     "BR": "pt",
-    "US": "en",
-    "UK": "en",
-    "AU": "en",
-    "CA": "en",
-    "EU": "en",  # Europa usa ingles como padrao (multi-idioma)
-    "CH": "en",
-    "AE": "en",
-    "JP": "ja",
-    "KR": "ko",
-    "DK": "en",  # Nordicos entendem ingles
-    "SE": "en",
-    "NO": "en",
     "MX": "es",
+    # Todas as outras regioes: ingles (idioma universal de expatriados)
+    "US": "en", "UK": "en", "AU": "en", "CA": "en",
+    "EU": "en", "CH": "en", "AE": "en",
+    "JP": "en", "KR": "en",
+    "DK": "en", "SE": "en", "NO": "en",
 }
 
 # Codigos de idioma do Telegram para idioma do bot
+# Apenas 6 idiomas principais - resto cai pra ingles
 LANG_CODE_MAP = {
     "pt": "pt", "pt-br": "pt", "pt_br": "pt",
     "es": "es", "es-419": "es", "es_mx": "es", "es_es": "es",
     "fr": "fr", "fr-fr": "fr", "fr_fr": "fr",
     "de": "de", "de-de": "de", "de_de": "de", "de-ch": "de",
     "it": "it", "it-it": "it", "it_it": "it",
-    "ja": "ja", "ja-jp": "ja",
-    "ko": "ko", "ko-kr": "ko",
-    "nl": "nl", "nl-nl": "nl",
+    # JA, KO, NL, AR etc -> fallback para EN (expatriados falam ingles)
 }
 
 
