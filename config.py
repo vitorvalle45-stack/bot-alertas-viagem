@@ -48,7 +48,7 @@ RSS_FEEDS = [
     # === EUA ===
     {"nome": "TravelPirates", "url": "https://www.travelpirates.com/feed", "tipo": "internacional", "regiao": "US"},
     {"nome": "Thrifty Traveler", "url": "https://thriftytraveler.com/feed/", "tipo": "internacional", "regiao": "US"},
-    {"nome": "The Points Guy", "url": "https://thepointsguy.com/feed/", "tipo": "internacional", "regiao": "US"},
+    # The Points Guy - REMOVIDO (404, feed morto)
     {"nome": "One Mile at a Time", "url": "https://onemileatatime.com/feed/", "tipo": "internacional", "regiao": "US"},
     {"nome": "Travel Off Path", "url": "https://www.traveloffpath.com/feed/", "tipo": "internacional", "regiao": "US"},
     # === AUSTRALIA ===
@@ -74,11 +74,11 @@ RSS_FEEDS = [
     # === HOLANDA ===
     {"nome": "TicketSpy", "url": "https://ticketspy.nl/feed/", "tipo": "internacional", "regiao": "EU"},
     # === ASIA ===
-    {"nome": "Traicy", "url": "https://en.traicy.com/feed", "tipo": "internacional", "regiao": "JP"},
+    # Traicy - REMOVIDO (traz conteudo de restaurantes/hoteis, nao deals de passagem)
     {"nome": "Live From A Lounge Deals", "url": "https://livefromalounge.com/category/deals/feed/", "tipo": "internacional", "regiao": "JP"},
     # === ERROR FARES EXTRA ===
     # Google News Fuel Dump - REMOVIDO (traz processos judiciais e acidentes de aviao)
-    {"nome": "FlyerTalk Deals", "url": "https://www.flyertalk.com/forum/external.php?type=RSS2&forumids=372", "tipo": "error_fare", "regiao": "ALL"},
+    # FlyerTalk Deals - REMOVIDO (403, bloqueado)
 ]
 
 # Cidades/aeroportos por regiao (para detectar origem dos deals)

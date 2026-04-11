@@ -547,15 +547,16 @@ _feed_failures = {}
 _last_health_alert = 0  # timestamp do ultimo alerta de saude enviado
 
 def get_feed_health():
-    """Retorna dict de feeds com falhas consecutivas >= 3, max 1 alerta por hora."""
+    """Retorna dict de feeds com falhas consecutivas >= 3, max 1 alerta por dia."""
     import time as _time
     global _last_health_alert
     now = _time.time()
-    broken = {nome: count for nome, count in _feed_failures.items() if count >= 3}
+    # Ignora feeds com mais de 10 falhas (provavelmente morto, nao adianta alertar)
+    broken = {nome: count for nome, count in _feed_failures.items() if 3 <= count <= 10}
     if not broken:
         return {}
-    # Limita alertas: maximo 1 por hora (3600s)
-    if now - _last_health_alert < 3600:
+    # Limita alertas: maximo 1 por DIA (86400s) para nao spammar
+    if now - _last_health_alert < 86400:
         return {}
     _last_health_alert = now
     return broken
